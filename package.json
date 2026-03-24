@@ -1,6 +1,6 @@
 {
   "name": "the-last-whisper",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Dictaphone push-to-talk + assistant IA desktop — cross-platform",
   "main": "main.js",
   "author": "Digitis <david@digitis.cloud>",
@@ -36,7 +36,13 @@
       "target": [
         "AppImage"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "executableArgs": [
+        "--no-sandbox"
+      ],
+      "files": [
+        "!paste.vbs"
+      ]
     },
     "files": [
       "main.js",
@@ -48,6 +54,7 @@
       "assets/**/*",
       "node_modules/**/*"
     ],
+    "afterPack": "./afterPack.js",
     "extraResources": [
       {
         "from": "assets/",

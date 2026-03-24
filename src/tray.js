@@ -96,19 +96,23 @@ function buildMenu(micDevices) {
     : 'Gemini key: (not configured)';
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'The Last Whisper v0.2.0', enabled: false },
+    { label: 'The Last Whisper v0.3.0', enabled: false },
     { type: 'separator' },
     { label: 'Microphone', submenu: micSubmenu },
     {
       label: 'STT Models...',
+      type: 'normal',
       click: () => {
+        log('[Tray] STT Models clicked');
         const { ipcMain } = require('electron');
         ipcMain.emit('open-model-manager');
       }
     },
     {
       label: 'Action modes...',
+      type: 'normal',
       click: () => {
+        log('[Tray] Action modes clicked');
         const { ipcMain } = require('electron');
         ipcMain.emit('open-modes-editor');
       }

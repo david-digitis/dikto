@@ -1,6 +1,6 @@
 # THE LAST WHISPER
 
-Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.2.0.
+Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.3.0.
 
 ## Stack technique
 
@@ -10,8 +10,8 @@ Desktop dictaphone with local STT + AI-powered text processing (translation, cor
 - **IA cloud** : Gemini 2.5 Flash Lite (API REST, header x-goog-api-key)
 - **Audio** : Web Audio API via hidden BrowserWindow (MediaDevices + ScriptProcessor)
 - **Clipboard** : electron clipboard module
-- **Auto-paste** : VBScript (cscript, Windows) / xdotool (Linux)
-- **Hotkeys** : uiohook-napi (push-to-talk hold/release + double Ctrl+C detection)
+- **Auto-paste** : VBScript (cscript, Windows) / dotool (Linux/Wayland)
+- **Hotkeys** : uiohook-napi (Windows) / evdev direct /dev/input/ (Linux/Wayland)
 - **Config** : electron safeStorage (cle API chiffree)
 - **Packaging** : electron-builder (.exe portable + NSIS installer Windows, .AppImage Linux)
 
@@ -23,6 +23,7 @@ THE-LAST-WHISPER/
 ├── preload.js              # Bridge IPC securise (contextBridge)
 ├── preload-audio.js        # Bridge IPC pour audio worker
 ├── paste.vbs               # VBScript auto-genere pour Ctrl+V rapide (Windows only)
+├── afterPack.js            # electron-builder hook: wrapper script Linux (--no-sandbox)
 ├── package.json
 ├── src/
 │   ├── stt.js              # Dual STT engine (Parakeet + Whisper, auto-switch par duree)
@@ -30,11 +31,12 @@ THE-LAST-WHISPER/
 │   ├── gemini.js           # Client Gemini — getActions() lit depuis config, translate built-in
 │   ├── config.js           # Config store (safeStorage, customActions, language pair)
 │   ├── tray.js             # Tray icon + menu complet (micro, modeles, modes, langues, seuil)
-│   ├── paste.js            # Clipboard + auto-paste VBScript/xdotool
+│   ├── paste.js            # Clipboard + auto-paste VBScript/dotool
 │   ├── models.js           # Download/gestion modeles STT
 │   ├── sounds.js           # Beeps feedback (start, done, error)
-│   ├── logger.js           # File logger (debug.log)
-│   └── platform.js         # Abstractions OS (detection terminal)
+│   ├── logger.js           # File logger (debug.log in userData)
+│   ├── platform.js         # Abstractions OS (detection terminal, Wayland/X11)
+│   └── hotkeys-linux.js    # Linux hotkeys via evdev (Wayland compatible)
 ├── ui/
 │   ├── audio-worker.html   # Hidden window pour capture micro
 │   ├── bubble/             # Bubble oscilloscope + boutons action dynamiques
@@ -46,12 +48,12 @@ THE-LAST-WHISPER/
 └── CLAUDE.md
 ```
 
-## Fonctionnalites (v0.2.0)
+## Fonctionnalites (v0.3.0)
 
 ### Dictaphone push-to-talk
 - Hold Ctrl+Space -> enregistre, release -> transcrit -> colle automatiquement
 - Dual engine : Parakeet TDT v3 (< seuil) / Whisper Turbo (>= seuil, configurable)
-- Auto-paste via VBScript (Windows) / xdotool+ydotool (Linux)
+- Auto-paste via VBScript (Windows) / dotool (Linux/Wayland)
 - Tray icon 3 etats (idle gris, recording rouge, busy orange)
 - Sons feedback (beep start, double beep done, buzz error)
 
@@ -96,17 +98,24 @@ THE-LAST-WHISPER/
 - `npm run build:win` ou `npx electron-builder --win portable`
 - Note : winCodeSign necessite Developer Mode ou extraction manuelle du cache (bug symlinks)
 
+### Build Linux
+- AppImage (114 MB)
+- `npm run build:linux`
+- afterPack.js cree un wrapper script qui injecte ELECTRON_DISABLE_SANDBOX et --no-sandbox
+- Pre-requis utilisateur : dotool, extension GNOME AppIndicator, membre du groupe input
+
 ## Regles de dev
 
 - **Secrets** : Cle API Gemini via electron safeStorage, JAMAIS en clair
 - **API Gemini** : Header `x-goog-api-key` (pas query string `?key=`)
-- **Auto-paste** : VBScript sur Windows (cscript), xdotool sur Linux
-- **Push-to-talk** : uiohook-napi (keydown/keyup), PAS globalShortcut (cause key repeat)
+- **Auto-paste** : VBScript sur Windows (cscript), dotool sur Linux/Wayland
+- **Push-to-talk** : uiohook-napi sur Windows, evdev sur Linux (uiohook ne fonctionne pas sous Wayland)
+- **Sandbox Linux** : chrome-sandbox n'a pas le SUID bit dans l'AppImage, donc afterPack.js cree un wrapper qui passe --no-sandbox et ELECTRON_DISABLE_SANDBOX=1
 - **Focus** : Bubble non-focusable au show (showInactive). Overlay minimize avant insert pour refocus
 - **Multi-ecran** : Toutes les fenetres s'ouvrent sur l'ecran du curseur (screen.getCursorScreenPoint)
 - **Actions dynamiques** : Bubble et overlay chargent les boutons via IPC get-actions au render
-- **Logs** : debug.log dans le dossier projet, logger.js synchrone
-- **ELECTRON_RUN_AS_NODE** : Doit etre unset pour lancer (VS Code le set)
+- **Logs** : debug.log dans userData (~/.config/the-last-whisper/ sur Linux, %APPDATA% sur Windows)
+- **ELECTRON_RUN_AS_NODE** : Doit etre unset pour lancer (VS Code le set). Le .desktop file le neutralise.
 - **Nom public** : David (pas de nom de famille dans le code — repo public)
 
 ## Design system
@@ -127,9 +136,29 @@ THE-LAST-WHISPER/
 ## Lancement dev
 
 ```bash
-# Depuis un terminal (PAS VS Code a cause de ELECTRON_RUN_AS_NODE)
+# Depuis un terminal systeme (PAS VS Code a cause de ELECTRON_RUN_AS_NODE)
 cd THE-LAST-WHISPER
 npx electron .
+
+# Sous Wayland, si probleme de sandbox renderer:
+ELECTRON_DISABLE_SANDBOX=1 npx electron .
+```
+
+## Pre-requis Linux (Fedora/Wayland)
+
+```bash
+# Outils systeme
+sudo dnf install dotool fuse-libs
+
+# Groupe input (pour evdev, relancer la session apres)
+sudo usermod -aG input $USER
+
+# Extension GNOME pour le tray icon
+# Installer "AppIndicator and KStatusNotifierItem Support" depuis GNOME Extensions
+
+# Service dotool
+sudo systemctl enable --now dotool.service
+# OU lancer manuellement: sudo dotoold &
 ```
 
 ## Modeles STT
@@ -139,7 +168,7 @@ npx electron .
 | Parakeet TDT v3 int8 | parakeet-tdt-v3-int8 | ~464 MB | sherpa-onnx releases |
 | Whisper Turbo int8 | whisper-turbo | ~538 MB | sherpa-onnx releases |
 
-Stockage : `%APPDATA%/the-last-whisper/models/` (Win) / `~/.local/share/the-last-whisper/models/` (Linux)
+Stockage : `%APPDATA%/the-last-whisper/models/` (Win) / `~/.config/the-last-whisper/models/` (Linux)
 
 ## GitHub
 

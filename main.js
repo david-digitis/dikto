@@ -1,5 +1,10 @@
 const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard } = require('electron');
 const path = require('path');
+
+// Linux: disable sandbox (AppImage has no SUID chrome-sandbox)
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox');
+}
 const { log, error: logError } = require('./src/logger');
 const { initTray, setTrayState, updateMicList } = require('./src/tray');
 const { initSTT, transcribe, getActiveModelName } = require('./src/stt');
@@ -7,7 +12,13 @@ const { startRecording, stopRecording, setAudioDevice, listAudioDevices } = requ
 const { pasteText } = require('./src/paste');
 const { loadConfig, getConfig } = require('./src/config');
 const { playStart, playDone, playError } = require('./src/sounds');
-const { uIOhook, UiohookKey } = require('uiohook-napi');
+
+// Linux: use evdev for hotkeys (uiohook doesn't work under Wayland)
+const isLinux = process.platform === 'linux';
+let uIOhook, UiohookKey;
+if (!isLinux) {
+  ({ uIOhook, UiohookKey } = require('uiohook-napi'));
+}
 
 let bubbleWindow = null;
 let isRecording = false;
@@ -177,29 +188,54 @@ ipcMain.on('onboarding-done', () => {
   log('[Onboarding] Complete');
 });
 
-// ─── Push-to-talk + Double Ctrl+C via uiohook ────────────────
+// ─── Push-to-talk + Double Ctrl+C ─────────────────────────────
 
 let lastCtrlCTime = 0;
 const DOUBLE_CC_DELAY = 400; // ms between two Ctrl+C presses
 
 function registerPushToTalk() {
+  if (isLinux) {
+    registerPushToTalkEvdev();
+  } else {
+    registerPushToTalkUiohook();
+  }
+}
+
+function registerPushToTalkEvdev() {
+  const { startEvdevListener } = require('./src/hotkeys-linux');
+  const ok = startEvdevListener({
+    onRecordStart: () => {
+      if (!isRecording && !isProcessing) {
+        beginRecording();
+      }
+    },
+    onRecordStop: () => {
+      finishRecording();
+    },
+    onDoubleCtrlC: () => {
+      log('[Hotkey] Double Ctrl+C detected');
+      handleDoubleCtrlC();
+    },
+  });
+  if (ok) {
+    log('[Hotkey] Push-to-talk registered (evdev: hold Ctrl+Space)');
+  } else {
+    logError('[Hotkey] evdev listener failed — hotkeys disabled');
+  }
+}
+
+function registerPushToTalkUiohook() {
   uIOhook.on('keydown', (e) => {
-    // Track Ctrl state
     if (e.keycode === UiohookKey.Ctrl || e.keycode === UiohookKey.CtrlRight) {
       ctrlDown = true;
     }
-
-    // Ctrl+Space = push-to-talk start
     if (e.keycode === UiohookKey.Space && ctrlDown && !isRecording && !isProcessing) {
       spaceDown = true;
       beginRecording();
     }
-
-    // Detect double Ctrl+C
     if (e.keycode === UiohookKey.C && ctrlDown && !isRecording) {
       const now = Date.now();
       if (now - lastCtrlCTime < DOUBLE_CC_DELAY) {
-        // Double Ctrl+C detected!
         lastCtrlCTime = 0;
         log('[Hotkey] Double Ctrl+C detected');
         handleDoubleCtrlC();
@@ -665,7 +701,7 @@ ipcMain.handle('delete-model', async (event, modelId) => {
 // ─── App lifecycle ────────────────────────────────────────────
 
 app.on('will-quit', () => {
-  uIOhook.stop();
+  if (!isLinux && uIOhook) uIOhook.stop();
   globalShortcut.unregisterAll();
 });
 

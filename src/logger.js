@@ -1,7 +1,17 @@
 const fs = require('fs');
 const path = require('path');
 
-const logFile = path.join(__dirname, '..', 'debug.log');
+// In packaged app, write logs to userData (AppImage is read-only)
+let logFile;
+try {
+  const { app } = require('electron');
+  const userDataPath = app.getPath('userData');
+  if (!fs.existsSync(userDataPath)) fs.mkdirSync(userDataPath, { recursive: true });
+  logFile = path.join(userDataPath, 'debug.log');
+} catch {
+  // Fallback for non-Electron context (e.g. test scripts)
+  logFile = path.join(__dirname, '..', 'debug.log');
+}
 
 // Clear log on start
 fs.writeFileSync(logFile, `[${new Date().toISOString()}] === The Last Whisper started ===\n`);

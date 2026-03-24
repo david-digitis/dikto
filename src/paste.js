@@ -10,6 +10,10 @@ if (process.platform === 'win32' && !existsSync(vbsPath)) {
   writeFileSync(vbsPath, 'CreateObject("WScript.Shell").SendKeys "^v"\n');
 }
 
+// Detect Wayland session (avoid xdotool which only works on X11)
+const isWayland = process.platform === 'linux' &&
+  (process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY);
+
 async function pasteText(text) {
   if (!text || text.trim().length === 0) return;
 
@@ -35,7 +39,19 @@ function simulatePaste() {
         if (err) reject(err);
         else resolve();
       });
+    } else if (isWayland) {
+      // Wayland: use dotool (same as voice2clip)
+      const { spawn } = require('child_process');
+      const proc = spawn('dotool', [], { timeout: 2000 });
+      proc.stdin.write('key ctrl+v\n');
+      proc.stdin.end();
+      proc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`dotool exited with code ${code}`));
+      });
+      proc.on('error', reject);
     } else {
+      // X11: xdotool with ydotool fallback
       exec('xdotool key ctrl+v', { timeout: 2000 }, (err) => {
         if (err) {
           exec('ydotool key 29:1 47:1 47:0 29:0', { timeout: 2000 }, (err2) => {
