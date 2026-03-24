@@ -8,9 +8,14 @@ let onMicSelected = null;
 let onApiKeySet = null;
 let onAutoCorrectionToggle = null;
 let onSwitchThresholdChange = null;
+let onLanguageChange = null;
 let currentApiKey = '';
 let autoCorrectionEnabled = false;
 let switchThreshold = 10;
+let nativeLanguage = 'French';
+let targetLanguage = 'English';
+
+const LANGUAGES = ['French', 'English', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch'];
 
 function createMicIcon(color) {
   const size = 16;
@@ -55,9 +60,12 @@ function initTray(app, callbacks) {
   onApiKeySet = callbacks.onApiKeySet;
   onAutoCorrectionToggle = callbacks.onAutoCorrectionToggle;
   onSwitchThresholdChange = callbacks.onSwitchThresholdChange;
+  onLanguageChange = callbacks.onLanguageChange;
   currentApiKey = callbacks.currentApiKey || '';
   autoCorrectionEnabled = callbacks.autoCorrectionEnabled || false;
   switchThreshold = callbacks.switchThreshold || 10;
+  nativeLanguage = callbacks.nativeLanguage || 'French';
+  targetLanguage = callbacks.targetLanguage || 'English';
 
   const icon = ICONS.idle();
   tray = new Tray(icon);
@@ -118,6 +126,33 @@ function buildMenu(micDevices) {
           switchThreshold = val;
           log(`[Tray] Switch threshold: ${val}s`);
           if (onSwitchThresholdChange) onSwitchThresholdChange(val);
+        }
+      }))
+    },
+    { type: 'separator' },
+    {
+      label: `Native language: ${nativeLanguage}`,
+      submenu: LANGUAGES.map(lang => ({
+        label: lang,
+        type: 'radio',
+        checked: lang === nativeLanguage,
+        click: () => {
+          nativeLanguage = lang;
+          log(`[Tray] Native language: ${lang}`);
+          if (onLanguageChange) onLanguageChange('nativeLanguage', lang);
+        }
+      }))
+    },
+    {
+      label: `Target language: ${targetLanguage}`,
+      submenu: LANGUAGES.map(lang => ({
+        label: lang,
+        type: 'radio',
+        checked: lang === targetLanguage,
+        click: () => {
+          targetLanguage = lang;
+          log(`[Tray] Target language: ${lang}`);
+          if (onLanguageChange) onLanguageChange('targetLanguage', lang);
         }
       }))
     },
