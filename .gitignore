@@ -1,0 +1,9 @@
+node_modules/
+dist/
+models/
+*.wav
+*.tmp
+.env
+debug.log
+paste.vbs
+.claude/

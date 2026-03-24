@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head><title>Audio Worker</title></head>
+<body>
+<script>
+/**
+ * Hidden audio worker — captures from OS microphone
+ * using Web Audio API, outputs 16kHz mono Float32Array for sherpa-onnx.
+ */
+
+let mediaStream = null;
+let audioContext = null;
+let sourceNode = null;
+let processorNode = null;
+let audioChunks = [];
+let isCapturing = false;
+
+const TARGET_SAMPLE_RATE = 16000;
+
+// On load: enumerate audio devices and log them
+(async function init() {
+  try {
+    // Request mic access first (needed to get device labels)
+    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    tempStream.getTracks().forEach(t => t.stop());
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioInputs = devices.filter(d => d.kind === 'audioinput');
+    console.log('[AudioWorker] Available microphones:');
+    audioInputs.forEach((d, i) => {
+      console.log(`  [${i}] ${d.label} (id: ${d.deviceId.substring(0, 16)}...)`);
+    });
+    console.log('[AudioWorker] Ready. Total audio inputs:', audioInputs.length);
+  } catch (err) {
+    console.error('[AudioWorker] Init error:', err.message);
+  }
+})();
+
+// Handle device enumeration request
+window.audioWorker.onListDevices(async () => {
+  try {
+    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    tempStream.getTracks().forEach(t => t.stop());
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioInputs = devices
+      .filter(d => d.kind === 'audioinput')
+      .map(d => ({ deviceId: d.deviceId, label: d.label || `Microphone ${d.deviceId.substring(0, 8)}` }));
+    window.audioWorker.sendDevices(audioInputs);
+  } catch (err) {
+    console.error('[AudioWorker] listDevices error:', err.message);
+    window.audioWorker.sendDevices([]);
+  }
+});
+
+window.audioWorker.onStartRecording(async (event, options) => {
+  try {
+    audioChunks = [];
+    isCapturing = true;
+
+    // Build audio constraints
+    const audioConstraints = {
+      channelCount: 1,
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: true,
+    };
+
+    // If a specific deviceId is provided, use it
+    if (options && options.deviceId) {
+      audioConstraints.deviceId = { exact: options.deviceId };
+      console.log('[AudioWorker] Using device:', options.deviceId);
+    } else {
+      console.log('[AudioWorker] Using default microphone');
+    }
+
+    // Request microphone access
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+
+    // Log which track we actually got
+    const track = mediaStream.getAudioTracks()[0];
+    const settings = track.getSettings();
+    console.log('[AudioWorker] Mic track:', track.label);
+    console.log('[AudioWorker] Settings:', JSON.stringify({
+      sampleRate: settings.sampleRate,
+      channelCount: settings.channelCount,
+      deviceId: settings.deviceId?.substring(0, 16),
+    }));
+
+    // Create AudioContext
+    audioContext = new AudioContext();
+    sourceNode = audioContext.createMediaStreamSource(mediaStream);
+
+    const bufferSize = 4096;
+    processorNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
+
+    let maxAmplitude = 0;
+    processorNode.onaudioprocess = (e) => {
+      if (!isCapturing) return;
+      const inputData = e.inputBuffer.getChannelData(0);
+      // Track max amplitude to verify we're getting real audio
+      for (let i = 0; i < inputData.length; i++) {
+        const abs = Math.abs(inputData[i]);
+        if (abs > maxAmplitude) maxAmplitude = abs;
+      }
+      audioChunks.push(new Float32Array(inputData));
+    };
+
+    sourceNode.connect(processorNode);
+    processorNode.connect(audioContext.destination);
+
+    console.log('[AudioWorker] Recording started at', audioContext.sampleRate, 'Hz');
+
+    // Log amplitude every second to verify audio is coming in
+    const ampInterval = setInterval(() => {
+      if (!isCapturing) { clearInterval(ampInterval); return; }
+      console.log(`[AudioWorker] Max amplitude: ${maxAmplitude.toFixed(4)} (${maxAmplitude > 0.01 ? 'AUDIO OK' : 'SILENCE/NO SIGNAL'})`);
+      maxAmplitude = 0;
+    }, 1000);
+
+  } catch (err) {
+    console.error('[AudioWorker] Start error:', err.message);
+    window.audioWorker.sendError(err.message);
+  }
+});
+
+window.audioWorker.onStopRecording(() => {
+  isCapturing = false;
+
+  try {
+    if (mediaStream) {
+      mediaStream.getTracks().forEach(t => t.stop());
+      mediaStream = null;
+    }
+    if (processorNode) {
+      processorNode.disconnect();
+      processorNode = null;
+    }
+    if (sourceNode) {
+      sourceNode.disconnect();
+      sourceNode = null;
+    }
+
+    if (audioChunks.length === 0) {
+      window.audioWorker.sendError('No audio captured');
+      return;
+    }
+
+    // Merge all chunks
+    const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of audioChunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    audioChunks = [];
+
+    // Resample to 16kHz if needed
+    const nativeSampleRate = audioContext ? audioContext.sampleRate : 48000;
+    let outputSamples;
+
+    if (Math.abs(nativeSampleRate - TARGET_SAMPLE_RATE) < 100) {
+      outputSamples = merged;
+    } else {
+      outputSamples = resample(merged, nativeSampleRate, TARGET_SAMPLE_RATE);
+    }
+
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
+    }
+
+    // Check if we got actual audio or just silence
+    let maxVal = 0;
+    for (let i = 0; i < outputSamples.length; i++) {
+      const abs = Math.abs(outputSamples[i]);
+      if (abs > maxVal) maxVal = abs;
+    }
+
+    console.log(`[AudioWorker] Captured ${(outputSamples.length / TARGET_SAMPLE_RATE).toFixed(1)}s, max amplitude: ${maxVal.toFixed(4)}`);
+
+    if (maxVal < 0.001) {
+      console.warn('[AudioWorker] WARNING: Audio appears to be silence! Wrong microphone?');
+    }
+
+    // Send to main process
+    window.audioWorker.sendAudioData(Array.from(outputSamples));
+
+  } catch (err) {
+    console.error('[AudioWorker] Stop error:', err);
+    window.audioWorker.sendError(err.message);
+  }
+});
+
+function resample(input, fromRate, toRate) {
+  const ratio = fromRate / toRate;
+  const outputLength = Math.round(input.length / ratio);
+  const output = new Float32Array(outputLength);
+
+  for (let i = 0; i < outputLength; i++) {
+    const srcIndex = i * ratio;
+    const srcFloor = Math.floor(srcIndex);
+    const srcCeil = Math.min(srcFloor + 1, input.length - 1);
+    const frac = srcIndex - srcFloor;
+    output[i] = input[srcFloor] * (1 - frac) + input[srcCeil] * frac;
+  }
+
+  return output;
+}
+</script>
+</body>
+</html>

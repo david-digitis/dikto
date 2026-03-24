@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <div id="backdrop" class="backdrop">
+    <div id="panel" class="panel">
+
+      <div class="panel-header">
+        <span class="panel-title">The Last Whisper</span>
+        <button class="close-btn" id="close-btn">&times;</button>
+      </div>
+
+      <div id="source-text" class="source-text"></div>
+
+      <div id="actions" class="actions-row">
+        <button class="action-btn" data-action="grammar">Abc</button>
+        <button class="action-btn" data-action="translate">Trad</button>
+        <button class="action-btn" data-action="mail-fr">Mail FR</button>
+        <button class="action-btn" data-action="mail-en">Mail EN</button>
+      </div>
+
+      <div id="result-area" class="result-area hidden">
+        <div id="result-text" class="result-text"></div>
+        <div class="result-buttons">
+          <button class="btn-secondary" id="copy-btn">Copier</button>
+          <button class="btn-primary" id="insert-btn">Coller</button>
+        </div>
+      </div>
+
+      <div id="loading" class="loading hidden">Gemini...</div>
+
+    </div>
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>

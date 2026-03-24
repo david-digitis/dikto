@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <link rel="stylesheet" href="bubble.css">
+</head>
+<body>
+  <div id="bubble" class="bubble compact">
+    <!-- Oscilloscope bars -->
+    <div id="bars" class="bars-container">
+      <canvas id="oscilloscope" width="280" height="36"></canvas>
+    </div>
+
+    <!-- Action buttons (revealed after 500ms) -->
+    <div id="actions" class="actions-container hidden">
+      <button class="action-btn" data-action="grammar" title="Corriger le texte">Abc</button>
+      <button class="action-btn" data-action="translate" title="Traduire en anglais">Trad</button>
+      <button class="action-btn" data-action="mail-fr" title="Email professionnel FR">Mail FR</button>
+      <button class="action-btn" data-action="mail-en" title="Email professionnel EN">Mail EN</button>
+    </div>
+
+    <!-- Status text (shown during processing) -->
+    <div id="status" class="status hidden">Processing...</div>
+  </div>
+
+  <script src="bubble.js"></script>
+</body>
+</html>

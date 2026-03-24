@@ -1,0 +1,58 @@
+{
+  "name": "the-last-whisper",
+  "version": "0.1.0",
+  "description": "Dictaphone push-to-talk + assistant IA desktop — cross-platform",
+  "main": "main.js",
+  "author": "Digitis <david@digitis.cloud>",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "unset ELECTRON_RUN_AS_NODE && electron .",
+    "start:win": "set ELECTRON_RUN_AS_NODE= && electron .",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "test:stt": "node test-stt.js"
+  },
+  "build": {
+    "appId": "cloud.digitis.the-last-whisper",
+    "productName": "The Last Whisper",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": false,
+    "npmRebuild": false,
+    "win": {
+      "target": "portable"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "preload-audio.js",
+      "paste.vbs",
+      "src/**/*",
+      "ui/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/",
+        "to": "assets/"
+      }
+    ]
+  },
+  "dependencies": {
+    "sherpa-onnx-node": "^1.12.32",
+    "uiohook-napi": "^1.5.5"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  }
+}
