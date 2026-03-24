@@ -1,153 +1,138 @@
-# Instructions pour l'adaptation Linux (Fedora/Wayland)
+# Linux setup (Fedora/Wayland)
 
-## Contexte
+The Last Whisper is developed and tested on Windows 11. This document covers what to check and adapt for Linux Fedora with GNOME/Wayland.
 
-The Last Whisper est une app Electron qui combine :
-- **Dictaphone push-to-talk** : Hold Ctrl+Space -> STT local (Parakeet/sherpa-onnx) -> auto-paste
-- **Assistant IA** : Double Ctrl+C sur du texte -> overlay avec actions Gemini (correction, traduction, email)
+## Status
 
-La version Windows est fonctionnelle et testee. Cette page documente tout ce qu'il faut adapter pour Linux Fedora avec GNOME/Wayland.
+The codebase is cross-platform ready — Linux paths exist in `src/paste.js` (xdotool/ydotool) and `src/platform.js` (terminal detection). But it has **not been tested on Linux yet**. This document is a checklist for the first Linux run.
 
-## Stack actuelle (Windows)
+## System dependencies
 
-- Electron 33 (main + renderer)
-- sherpa-onnx-node v1.12.32 (STT local, CPU)
-- uiohook-napi (push-to-talk hold/release + double Ctrl+C)
-- Web Audio API (capture micro via hidden BrowserWindow)
-- VBScript/cscript (auto-paste Ctrl+V)
-- Gemini 2.5 Flash Lite (API cloud pour correction/traduction)
-- electron safeStorage (stockage cle API chiffree)
-
-## Ce qui doit changer pour Linux
-
-### 1. Auto-paste (CRITIQUE)
-
-**Windows** : `cscript paste.vbs` qui execute `SendKeys "^v"`
-
-**Linux** : Utiliser `xdotool` (X11) ou `ydotool` (Wayland)
-
-Le code est deja prepare dans `src/paste.js` — la branche Linux utilise :
-```
-xdotool key ctrl+v       # X11 / XWayland
-ydotool key 29:1 47:1 47:0 29:0  # Wayland natif
+```bash
+sudo dnf install libX11-devel libXtst-devel libXinerama-devel ydotool gnome-shell-extension-appindicator
 ```
 
-**A verifier** :
-- `xdotool` fonctionne sous Wayland via XWayland ? (probablement oui sur Fedora)
-- `ydotool` est installe ? Sinon : `sudo dnf install ydotool`
-- Les permissions : ydotool a besoin du group `input` ou d'un service systemd
+## What needs testing
 
-### 2. uiohook-napi (CRITIQUE)
+### 1. Auto-paste (CRITICAL)
 
-uiohook-napi utilise des bindings natifs. Sur Linux :
-- Il a besoin de `libx11-dev`, `libxtst-dev`, `libxinerama-dev` (ou leurs equivalents Fedora)
-- Fedora : `sudo dnf install libX11-devel libXtst-devel libXinerama-devel`
-- Le module a des binaires precompiles pour Linux x64, normalement `npm install` suffit
+**Windows**: `cscript paste.vbs` (SendKeys `^v`)
 
-**A verifier** :
-- Est-ce que uiohook-napi capture les touches sous Wayland ? Il utilise X11 sous le capot, donc ca devrait marcher via XWayland
-- Si ca ne marche pas : alternative `evdev` (comme dans voice2clip original) mais necessite le groupe `input`
+**Linux**: Already coded in `src/paste.js`:
+
+```
+xdotool key ctrl+v                    # X11 / XWayland
+ydotool key 29:1 47:1 47:0 29:0      # Wayland native (fallback)
+```
+
+**To verify**:
+
+- Does `xdotool` work under Wayland via XWayland? (probably yes on Fedora)
+- Is `ydotool` installed? If not: `sudo dnf install ydotool`
+- Permissions: ydotool needs the `input` group or a systemd service
+
+### 2. uiohook-napi (CRITICAL)
+
+Native bindings for global hotkeys. On Linux:
+
+- Needs `libX11-devel`, `libXtst-devel`, `libXinerama-devel`
+- Pre-built binaries exist for Linux x64 — `npm install` should work
+- Uses X11 under the hood — should work via XWayland on Wayland
+
+**If it doesn't work**: alternative is `evdev` (like the original voice2clip project) but requires the `input` group.
 
 ### 3. Audio capture
 
-**Windows** : Hidden BrowserWindow + `navigator.mediaDevices.getUserMedia()`
+Same approach as Windows: hidden BrowserWindow + `navigator.mediaDevices.getUserMedia()`. Should work directly with PipeWire (Fedora default). Electron uses PipeWire automatically on modern distros.
 
-**Linux** : Meme approche, devrait fonctionner directement avec PipeWire (Fedora default). Electron utilise PipeWire automatiquement pour l'audio sur les distros modernes.
+**To verify**: device IDs are different from Windows — onboarding will ask to select a mic on first launch.
 
-**A verifier** :
-- Le device ID sauvegarde sur Windows ne sera pas le meme sur Linux (normal)
-- Premier lancement : l'onboarding demandera de selectionner le micro
+### 4. STT models storage
 
-### 4. Stockage des modeles
+**Windows**: `%APPDATA%/the-last-whisper/models/`
+**Linux**: `~/.local/share/the-last-whisper/models/`
 
-**Windows** : `%APPDATA%/the-last-whisper/models/`
-**Linux** : `~/.local/share/the-last-whisper/models/` (gere automatiquement par `app.getPath('userData')`)
+Handled automatically by `app.getPath('userData')`. Models must be re-downloaded on Linux (~464 MB for Parakeet, ~538 MB for Whisper Turbo). The in-app model manager handles this.
 
-Le modele Parakeet TDT v3 int8 devra etre re-telecharge sur Linux (~464 MB). Le model manager dans l'app peut le faire.
+### 5. safeStorage (Gemini API key)
 
-### 5. safeStorage (cle API Gemini)
+- **Windows**: DPAPI (Windows Credential Manager)
+- **Linux**: libsecret (GNOME Keyring)
 
-Electron `safeStorage` utilise :
-- **Windows** : DPAPI (Windows Credential Manager)
-- **Linux** : libsecret (GNOME Keyring)
-
-**A verifier** : `gnome-keyring` est installe et actif (defaut sur Fedora GNOME)
+**To verify**: `gnome-keyring` is installed and active (default on Fedora GNOME).
 
 ### 6. Tray icon
 
-Electron tray sur Linux GNOME necessite l'extension AppIndicator :
+Electron tray on Linux GNOME requires AppIndicator:
+
 - `sudo dnf install gnome-shell-extension-appindicator`
-- Ou utiliser `libappindicator-gtk3`
+- Or `libappindicator-gtk3`
 
-Sans ca, le tray icon peut ne pas apparaitre. L'app fonctionne quand meme (les hotkeys marchent).
+Without it, the tray icon may not appear. The app still works (hotkeys are independent).
 
-### 7. paste.vbs
+### 7. Wayland-specific concerns
 
-Le fichier `paste.vbs` est genere automatiquement et n'est utilise que sur Windows. Sur Linux, `src/paste.js` utilise xdotool/ydotool. Pas besoin de toucher a ce fichier.
+1. **Window positioning**: Wayland doesn't let apps freely position windows. The bubble and overlay MAY be positioned by the window manager instead of the requested location. Possible fix: `gtk-layer-shell` or accept default positioning.
+2. **Focus/blur**: `showInactive()` on the bubble may not work as expected under Wayland.
+3. **Clipboard**: `electron.clipboard` should work via XWayland. If issues, use `wl-copy` as fallback.
 
-## Installation Linux
+## Installation
 
 ```bash
-# Pre-requis systeme
-sudo dnf install libX11-devel libXtst-devel libXinerama-devel ydotool gnome-shell-extension-appindicator
+# Clone the repo
+git clone https://github.com/david-digitis/the-last-whisper.git
+cd the-last-whisper
 
-# Cloner/copier le projet
-cd THE-LAST-WHISPER
-
-# Supprimer node_modules Windows et reinstaller
-rm -rf node_modules
+# Install dependencies (will download Linux-native binaries for sherpa-onnx and uiohook)
 npm install
 
-# Telecharger le modele Parakeet (si pas deja fait)
-# Le model manager dans l'app peut le faire, ou manuellement :
-mkdir -p ~/.local/share/the-last-whisper/models
-cd ~/.local/share/the-last-whisper/models
-curl -L https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2 | tar xjf -
-
-# Lancer
+# Launch
 npx electron .
 ```
 
-## Build Linux (AppImage)
+If coming from a Windows copy, delete `node_modules` first and reinstall:
 
 ```bash
-# Si electron-builder fonctionne
-npx electron-builder --linux AppImage
-
-# Sinon, utiliser electron-packager
-npx electron-packager . "The Last Whisper" --platform=linux --arch=x64 --out=dist --overwrite
+rm -rf node_modules
+npm install
 ```
 
-## Points d'attention specifiques Wayland
+## Manual model download (optional)
 
-1. **Positionnement des fenetres** : Wayland ne permet pas aux apps de positionner librement leurs fenetres. La bubble et l'overlay POURRAIENT etre positionnees par le window manager au lieu de l'emplacement demande. Solution possible : `gtk-layer-shell` ou accepter le positionnement par defaut.
+The in-app model manager can download models. To do it manually:
 
-2. **Focus/blur** : `showInactive()` de la bubble peut ne pas fonctionner comme sur Windows sous Wayland. A tester.
+```bash
+mkdir -p ~/.local/share/the-last-whisper/models
+cd ~/.local/share/the-last-whisper/models
+curl -L https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2 | tar xjf -
+```
 
-3. **Clipboard** : `electron.clipboard` devrait fonctionner via XWayland. Si problemes, utiliser `wl-copy` comme fallback (c'est ce que fait voice2clip).
+## Build (AppImage)
 
-## Fichiers a adapter (si necessaire)
+```bash
+npx electron-builder --linux AppImage
+```
 
-| Fichier | Adaptation |
-|---------|-----------|
-| `src/paste.js` | Deja prepare. Tester xdotool/ydotool |
-| `src/platform.js` | Detection terminal Linux (xdotool getactivewindow) |
-| `src/recorder.js` | Rien normalement (WebAudio + PipeWire) |
-| `src/config.js` | Rien (electron safeStorage + libsecret) |
-| `src/tray.js` | Rien (tester AppIndicator) |
-| `main.js` | Rien (uiohook-napi devrait marcher via XWayland) |
+## Files that may need adaptation
 
-## Ce qui ne change PAS
+| File | Status |
+|------|--------|
+| `src/paste.js` | Ready — has xdotool/ydotool branch. Test it. |
+| `src/platform.js` | Ready — has xdotool terminal detection. Test it. |
+| `src/recorder.js` | Should work (WebAudio + PipeWire). Test it. |
+| `src/config.js` | Should work (safeStorage + libsecret). Test it. |
+| `src/tray.js` | Should work. Test AppIndicator. |
+| `main.js` | Should work (uiohook-napi via XWayland). Test it. |
 
-- `src/stt.js` — sherpa-onnx-node est cross-platform
-- `src/gemini.js` — appels API identiques
-- `ui/` — tout le HTML/CSS/JS est identique
-- `preload.js`, `preload-audio.js` — identiques
-- Les prompts Gemini, les actions, le flow — tout identique
+## What does NOT change
 
-## Projet source de reference
+- `src/stt.js` — sherpa-onnx-node is cross-platform
+- `src/gemini.js` — same API calls
+- `src/models.js` — same download logic
+- `ui/` — all HTML/CSS/JS is identical
+- `preload.js`, `preload-audio.js` — identical
+- Custom action modes, language settings, prompts — all identical
 
-voice2clip (le projet Linux original) est dans :
-`C:\Users\David\JSCODE-PROJECT\SYNOLOGY-HOME\LINUX-MIGRATION\voice2clip`
+## Reference project
 
-Il utilise Python/GTK3/PipeWire/evdev. La logique metier (push-to-talk, transcription) est la meme. Utile comme reference si un composant Linux ne marche pas dans Electron.
+voice2clip (the original Linux-native project) uses Python/GTK3/PipeWire/evdev. Useful as reference if an Electron component doesn't work on Linux. David has it on his Synology NAS.

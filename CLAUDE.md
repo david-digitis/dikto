@@ -1,19 +1,19 @@
 # THE LAST WHISPER
 
-Application desktop cross-platform (Windows 11 + Linux Fedora/Wayland) combinant dictaphone push-to-talk avec STT local et assistant IA contextuel.
+Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.2.0.
 
 ## Stack technique
 
 - **Framework** : Electron 33 (main + renderer processes)
 - **Langage** : JavaScript/Node.js
-- **STT** : sherpa-onnx-node v1.12.32 (Parakeet TDT v3 + Whisper Turbo)
+- **STT** : sherpa-onnx-node v1.12.32 — dual engine: Parakeet TDT v3 (~50ms) + Whisper Turbo (~2s)
 - **IA cloud** : Gemini 2.5 Flash Lite (API REST, header x-goog-api-key)
 - **Audio** : Web Audio API via hidden BrowserWindow (MediaDevices + ScriptProcessor)
 - **Clipboard** : electron clipboard module
 - **Auto-paste** : VBScript (cscript, Windows) / xdotool (Linux)
 - **Hotkeys** : uiohook-napi (push-to-talk hold/release + double Ctrl+C detection)
 - **Config** : electron safeStorage (cle API chiffree)
-- **Packaging** : electron-builder (.exe Windows, .AppImage Linux)
+- **Packaging** : electron-builder (.exe portable + NSIS installer Windows, .AppImage Linux)
 
 ## Architecture
 
@@ -22,78 +22,79 @@ THE-LAST-WHISPER/
 ├── main.js                 # Main process — orchestration, hotkeys, windows
 ├── preload.js              # Bridge IPC securise (contextBridge)
 ├── preload-audio.js        # Bridge IPC pour audio worker
-├── paste.vbs               # VBScript auto-genere pour Ctrl+V rapide
+├── paste.vbs               # VBScript auto-genere pour Ctrl+V rapide (Windows only)
 ├── package.json
 ├── src/
-│   ├── stt.js              # STT engine (sherpa-onnx, model registry, transcribe)
+│   ├── stt.js              # Dual STT engine (Parakeet + Whisper, auto-switch par duree)
 │   ├── recorder.js         # Capture audio (hidden window + MediaDevices)
-│   ├── gemini.js           # Client Gemini (bubble actions + overlay actions)
-│   ├── config.js           # Config store (safeStorage pour secrets)
-│   ├── tray.js             # Tray icon (3 etats) + menu (micro, Gemini, auto-corr)
+│   ├── gemini.js           # Client Gemini — getActions() lit depuis config, translate built-in
+│   ├── config.js           # Config store (safeStorage, customActions, language pair)
+│   ├── tray.js             # Tray icon + menu complet (micro, modeles, modes, langues, seuil)
 │   ├── paste.js            # Clipboard + auto-paste VBScript/xdotool
 │   ├── models.js           # Download/gestion modeles STT
 │   ├── sounds.js           # Beeps feedback (start, done, error)
 │   ├── logger.js           # File logger (debug.log)
-│   └── platform.js         # Abstractions OS
+│   └── platform.js         # Abstractions OS (detection terminal)
 ├── ui/
 │   ├── audio-worker.html   # Hidden window pour capture micro
-│   ├── bubble/             # Bubble enregistrement + boutons action
-│   ├── overlay/            # Overlay IA (double Ctrl+C)
-│   ├── models/             # Gestionnaire de modeles
-│   └── onboarding/         # Premier lancement
+│   ├── bubble/             # Bubble oscilloscope + boutons action dynamiques
+│   ├── overlay/            # Overlay IA (double Ctrl+C) + boutons dynamiques
+│   ├── models/             # Gestionnaire de modeles STT
+│   ├── modes-editor/       # Editeur de modes d'action custom
+│   └── onboarding/         # Premier lancement (cle API, micro, raccourcis)
+├── docs/                   # Screenshots pour README GitHub
 └── CLAUDE.md
 ```
 
-## Fonctionnalites implementees
+## Fonctionnalites (v0.2.0)
 
 ### Dictaphone push-to-talk
 - Hold Ctrl+Space -> enregistre, release -> transcrit -> colle automatiquement
-- STT local via Parakeet TDT v3 (~130ms pour une phrase)
-- Auto-paste via VBScript (quasi instantane)
+- Dual engine : Parakeet TDT v3 (< seuil) / Whisper Turbo (>= seuil, configurable)
+- Auto-paste via VBScript (Windows) / xdotool+ydotool (Linux)
 - Tray icon 3 etats (idle gris, recording rouge, busy orange)
 - Sons feedback (beep start, double beep done, buzz error)
 
 ### Bubble avec actions IA
 - Bubble oscilloscope animee pendant enregistrement
-- 4 boutons apparaissent apres 500ms : Abc, Trad, Mail FR, Mail EN
-- Premier clic verrouille le choix (message "OK — relacher Ctrl+Space")
+- Boutons d'action generes dynamiquement depuis config.customActions
+- Trad (built-in, icone globe) toujours present + modes custom
+- Premier clic verrouille le choix, transcription + Gemini au release
 - Si aucun bouton clique : transcription brute
-- Si bouton clique : transcription -> Gemini -> paste
 
 ### Double Ctrl+C (overlay)
 - Selectionner du texte, Ctrl+C Ctrl+C rapide (<400ms)
-- Overlay dark centre avec 4 boutons : Abc, Trad, Mail FR, Mail EN
-- Resultat affiche -> Copier ou Coller
+- Overlay dark centre avec boutons dynamiques (memes que la bubble)
+- Resultat affiche -> Copy ou Paste
 - Escape pour fermer
 
-### Actions Gemini
+### Smart translate (DeepL-like)
+- nativeLanguage + targetLanguage dans config (defaut: French/English)
+- Bubble : traduit dictee vers targetLanguage
+- Overlay : detecte la langue, traduit vers native ou target automatiquement
+- Langues supportees : French, English, German, Spanish, Italian, Portuguese, Dutch
 
-**Bubble (contexte dictee)** :
-- Abc : corrige erreurs transcription
-- Trad : traduit en anglais (pas de mise en forme)
-- Mail FR : email professionnel FR avec signature auto
-- Mail EN : email professionnel EN avec signature auto
-
-**Overlay (contexte selection)** :
-- Abc : corrige orthographe/grammaire
-- Trad : traduit dans l'autre langue (auto-detect FR/EN)
-- Mail FR : reformule en email FR
-- Mail EN : reformule en email EN
+### Custom action modes
+- Actions stockees dans config.customActions (array d'objets {id, label, prompt})
+- Editeur UI : tray > Action modes... (ajouter, modifier, supprimer)
+- Modes par defaut : Abc (grammaire), Mail FR, Mail EN
+- Trad est built-in, pas editable, toujours present
 
 ### Configuration (tray menu)
-- Selection microphone (liste tous les devices audio)
-- Cle API Gemini (dialog dark, stockee chiffree via safeStorage)
-- Auto-correction Gemini (checkbox toggle)
-- Modeles STT (ouvre le model manager)
+- Selection microphone
+- STT Models... (model manager)
+- Action modes... (editeur de modes)
+- Auto-correction Gemini (checkbox)
+- Whisper switch threshold (5s/8s/10s/15s/20s/30s)
+- Native language / Target language
+- Cle API Gemini (dialog, stockee chiffree)
+- Start at login (checkbox)
+- Quit
 
-### Onboarding premier lancement
-- 3 etapes : cle Gemini -> micro -> raccourcis
-- S'affiche uniquement si pas de cle configuree
-
-### Model manager
-- Cards par modele avec barres precision/vitesse
-- Download avec progress bar
-- Badge actif/installe
+### Build Windows
+- Portable .exe (76 MB) + installeur NSIS (83 MB)
+- `npm run build:win` ou `npx electron-builder --win portable`
+- Note : winCodeSign necessite Developer Mode ou extraction manuelle du cache (bug symlinks)
 
 ## Regles de dev
 
@@ -103,8 +104,10 @@ THE-LAST-WHISPER/
 - **Push-to-talk** : uiohook-napi (keydown/keyup), PAS globalShortcut (cause key repeat)
 - **Focus** : Bubble non-focusable au show (showInactive). Overlay minimize avant insert pour refocus
 - **Multi-ecran** : Toutes les fenetres s'ouvrent sur l'ecran du curseur (screen.getCursorScreenPoint)
+- **Actions dynamiques** : Bubble et overlay chargent les boutons via IPC get-actions au render
 - **Logs** : debug.log dans le dossier projet, logger.js synchrone
 - **ELECTRON_RUN_AS_NODE** : Doit etre unset pour lancer (VS Code le set)
+- **Nom public** : David (pas de nom de famille dans le code — repo public)
 
 ## Design system
 
@@ -131,9 +134,15 @@ npx electron .
 
 ## Modeles STT
 
-| Modele | Usage | Taille | Source |
-|--------|-------|--------|--------|
-| Parakeet TDT v3 int8 | Rapide, francais excellent | ~464 MB | sherpa-onnx releases |
-| Whisper Large v3 Turbo | Precis, segments longs | ~800 MB | sherpa-onnx releases |
+| Modele | ID config | Taille | URL |
+|--------|-----------|--------|-----|
+| Parakeet TDT v3 int8 | parakeet-tdt-v3-int8 | ~464 MB | sherpa-onnx releases |
+| Whisper Turbo int8 | whisper-turbo | ~538 MB | sherpa-onnx releases |
 
 Stockage : `%APPDATA%/the-last-whisper/models/` (Win) / `~/.local/share/the-last-whisper/models/` (Linux)
+
+## GitHub
+
+- Repo : https://github.com/david-digitis/the-last-whisper
+- Release v0.2.0 publiee avec .exe portable + installeur NSIS
+- Licence MIT
