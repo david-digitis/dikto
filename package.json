@@ -4,7 +4,7 @@
   "description": "Dictaphone push-to-talk + assistant IA desktop — cross-platform",
   "main": "main.js",
   "author": "Digitis <david@digitis.cloud>",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "start": "unset ELECTRON_RUN_AS_NODE && electron .",
