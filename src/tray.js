@@ -96,7 +96,7 @@ function buildMenu(micDevices) {
     : 'Gemini key: (not configured)';
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'The Last Whisper v0.1.0', enabled: false },
+    { label: 'The Last Whisper v0.2.0', enabled: false },
     { type: 'separator' },
     { label: 'Microphone', submenu: micSubmenu },
     {
@@ -170,6 +170,15 @@ function buildMenu(micDevices) {
       click: () => showApiKeyDialog(),
     },
     { type: 'separator' },
+    {
+      label: 'Start at login',
+      type: 'checkbox',
+      checked: appRef.getLoginItemSettings().openAtLogin,
+      click: (menuItem) => {
+        appRef.setLoginItemSettings({ openAtLogin: menuItem.checked });
+        log(`[Tray] Start at login: ${menuItem.checked ? 'ON' : 'OFF'}`);
+      }
+    },
     {
       label: 'Quit',
       click: () => appRef.quit(),

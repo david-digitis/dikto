@@ -1,6 +1,6 @@
 {
   "name": "the-last-whisper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Dictaphone push-to-talk + assistant IA desktop — cross-platform",
   "main": "main.js",
   "author": "Digitis <david@digitis.cloud>",
@@ -22,7 +22,15 @@
     "asar": false,
     "npmRebuild": false,
     "win": {
-      "target": "portable"
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
     },
     "linux": {
       "target": [
