@@ -31,7 +31,7 @@ app.whenReady().then(async () => {
   const config = getConfig();
   try {
     await initSTT(config.modelsPath);
-    log('[TLW] STT engine initialized:', getActiveModelName());
+    log(`[TLW] STT engine initialized (threshold: ${config.switchThreshold}s)`);
   } catch (err) {
     logError('[TLW] STT init failed:', err.message);
   }
@@ -277,7 +277,7 @@ async function finishRecording() {
 
     log('[TLW] Transcribing...');
     const t0 = Date.now();
-    const text = await transcribe(samples, duration);
+    const text = await transcribe(samples, duration, getConfig().switchThreshold);
     log(`[TLW] STT took ${Date.now() - t0}ms`);
 
     if (!text || text.trim().length === 0) {
