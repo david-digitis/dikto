@@ -146,4 +146,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Author
 
-David Bertrand — [Digitis](https://digitis.cloud)
+David — [Digitis](https://digitis.cloud)

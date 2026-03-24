@@ -42,13 +42,13 @@ const BUBBLE_ACTIONS = {
     label: 'Mail FR',
     title: 'Email francais',
     buildPrompt: (text) =>
-      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
   'mail-en': {
     label: 'Mail EN',
     title: 'Email anglais',
     buildPrompt: (text) =>
-      `Traduis le texte francais suivant en un email professionnel en anglais. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Traduis le texte francais suivant en un email professionnel en anglais. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
 };
 
@@ -72,13 +72,13 @@ const OVERLAY_ACTIONS = {
     label: 'Mail FR',
     title: 'Email francais',
     buildPrompt: (text) =>
-      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
   'mail-en': {
     label: 'Mail EN',
     title: 'Email anglais',
     buildPrompt: (text) =>
-      `Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
 };
 
