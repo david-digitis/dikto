@@ -528,6 +528,64 @@ ipcMain.handle('get-recording-state', () => ({
   duration: isRecording ? (Date.now() - recordingStartTime) / 1000 : 0
 }));
 
+ipcMain.handle('get-actions', () => {
+  const { getActions } = require('./src/gemini');
+  const actions = getActions();
+  return Object.entries(actions).map(([id, a]) => ({
+    id, label: a.label, builtin: a.builtin || false,
+  }));
+});
+
+// ─── Modes editor ─────────────────────────────────────────────
+
+let modesEditorWindow = null;
+
+ipcMain.on('open-modes-editor', () => {
+  if (modesEditorWindow && !modesEditorWindow.isDestroyed()) {
+    modesEditorWindow.focus();
+    return;
+  }
+
+  const pos = getActiveDisplay().workArea;
+
+  modesEditorWindow = new BrowserWindow({
+    width: 560,
+    height: 520,
+    x: pos.x + Math.round(pos.width / 2 - 280),
+    y: pos.y + Math.round(pos.height / 2 - 260),
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    }
+  });
+
+  modesEditorWindow.loadFile('ui/modes-editor/modes-editor.html');
+  modesEditorWindow.once('ready-to-show', () => modesEditorWindow.show());
+});
+
+ipcMain.on('close-modes-editor', () => {
+  if (modesEditorWindow && !modesEditorWindow.isDestroyed()) {
+    modesEditorWindow.close();
+    modesEditorWindow = null;
+  }
+});
+
+ipcMain.handle('get-custom-actions', () => {
+  return getConfig().customActions || [];
+});
+
+ipcMain.handle('save-custom-actions', (event, actions) => {
+  const { setConfigValue } = require('./src/config');
+  setConfigValue('customActions', actions);
+  log(`[Modes] Saved ${actions.length} custom actions`);
+  return true;
+});
+
 // ─── Model manager ────────────────────────────────────────────
 
 let modelManagerWindow = null;

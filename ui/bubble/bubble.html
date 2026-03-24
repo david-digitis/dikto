@@ -12,13 +12,8 @@
       <canvas id="oscilloscope" width="280" height="36"></canvas>
     </div>
 
-    <!-- Action buttons (revealed after 500ms) -->
-    <div id="actions" class="actions-container hidden">
-      <button class="action-btn" data-action="grammar" title="Fix spelling & grammar">Abc</button>
-      <button class="action-btn builtin" data-action="translate" title="Smart translate">Trad</button>
-      <button class="action-btn" data-action="mail-fr" title="Professional email FR">Mail FR</button>
-      <button class="action-btn" data-action="mail-en" title="Professional email EN">Mail EN</button>
-    </div>
+    <!-- Action buttons (revealed after 500ms, populated dynamically) -->
+    <div id="actions" class="actions-container hidden"></div>
 
     <!-- Status text (shown during processing) -->
     <div id="status" class="status hidden">Processing...</div>

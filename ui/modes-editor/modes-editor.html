@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <link rel="stylesheet" href="modes-editor.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Action modes</h1>
+      <button class="close-btn" id="close-btn">&times;</button>
+    </div>
+
+    <div class="hint">
+      Configure the action buttons that appear in the bubble and overlay.
+      The <span class="builtin-tag">Trad</span> button is built-in and configured via the tray menu.
+    </div>
+
+    <div id="modes-list" class="modes-list">
+      <!-- Populated by JS -->
+    </div>
+
+    <div class="footer">
+      <button class="btn-add" id="add-btn">+ Add mode</button>
+    </div>
+  </div>
+
+  <script src="modes-editor.js"></script>
+</body>
+</html>

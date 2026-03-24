@@ -107,6 +107,13 @@ function buildMenu(micDevices) {
       }
     },
     {
+      label: 'Action modes...',
+      click: () => {
+        const { ipcMain } = require('electron');
+        ipcMain.emit('open-modes-editor');
+      }
+    },
+    {
       label: 'Gemini auto-correction',
       type: 'checkbox',
       checked: autoCorrectionEnabled,

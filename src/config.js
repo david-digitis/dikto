@@ -9,6 +9,23 @@ let config = {
   switchThreshold: 10, // seconds — switch from Parakeet to Whisper
   nativeLanguage: 'French',
   targetLanguage: 'English',
+  customActions: [
+    {
+      id: 'grammar',
+      label: 'Abc',
+      prompt: 'Corrige les fautes d\'orthographe, de grammaire et de ponctuation du texte suivant. Ne reformule pas, ne change pas le style, ne rajoute rien. Renvoie UNIQUEMENT le texte corrige.',
+    },
+    {
+      id: 'mail-fr',
+      label: 'Mail FR',
+      prompt: 'Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l\'email, rien d\'autre. Pas d\'objet.',
+    },
+    {
+      id: 'mail-en',
+      label: 'Mail EN',
+      prompt: 'Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l\'email en anglais, rien d\'autre. Pas d\'objet.',
+    },
+  ],
   autoCorrection: {
     enabled: false,
     prompt: 'Corrige les erreurs de transcription et de ponctuation, sans reformuler. Renvoie uniquement le texte corrige.',

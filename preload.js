@@ -16,6 +16,12 @@ contextBridge.exposeInMainWorld('tlw', {
   onboardingDone: () => ipcRenderer.send('onboarding-done'),
   onMicList: (callback) => ipcRenderer.on('mic-list', callback),
 
+  // Actions
+  getActions: () => ipcRenderer.invoke('get-actions'),
+  getCustomActions: () => ipcRenderer.invoke('get-custom-actions'),
+  saveCustomActions: (actions) => ipcRenderer.invoke('save-custom-actions', actions),
+  closeModesEditor: () => ipcRenderer.send('close-modes-editor'),
+
   // Model manager
   listModels: () => ipcRenderer.invoke('list-models'),
   downloadModel: (modelId) => ipcRenderer.send('download-model', modelId),

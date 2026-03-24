@@ -10,6 +10,49 @@ let barTargets = new Array(14).fill(0);
 let selectedAction = null;
 let actionLocked = false;
 
+// ─── Load action buttons dynamically ─────────────────────────
+
+async function loadActions() {
+  if (!window.tlw) return;
+  const actions = await window.tlw.getActions();
+  actionsContainer.innerHTML = '';
+
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'action-btn' + (a.builtin ? ' builtin' : '');
+    btn.dataset.action = a.id;
+    btn.textContent = a.label;
+    btn.addEventListener('click', onActionClick);
+    actionsContainer.appendChild(btn);
+  });
+}
+
+function onActionClick(e) {
+  e.stopPropagation();
+  if (actionLocked) return;
+
+  const btn = e.currentTarget;
+  selectedAction = btn.dataset.action;
+  actionLocked = true;
+
+  actionsContainer.querySelectorAll('.action-btn').forEach(b => {
+    if (b === btn) {
+      b.classList.add('selected');
+    } else {
+      b.style.display = 'none';
+    }
+  });
+
+  statusEl.textContent = 'OK — release Ctrl+Space';
+  statusEl.classList.remove('hidden');
+
+  if (window.tlw) {
+    window.tlw.sendAction(selectedAction);
+  }
+}
+
+loadActions();
+
 // Show action buttons after 500ms of recording
 setTimeout(() => {
   actionsContainer.classList.remove('hidden');
@@ -56,40 +99,8 @@ function animate() {
 
 animate();
 
-// ─── Action buttons ──────────────────────────────────────────
-
-document.querySelectorAll('.action-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (actionLocked) return; // Already selected, ignore
-
-    const action = btn.dataset.action;
-    selectedAction = action;
-    actionLocked = true;
-
-    // Visual: selected = orange, others disappear
-    document.querySelectorAll('.action-btn').forEach(b => {
-      if (b === btn) {
-        b.classList.add('selected');
-      } else {
-        b.style.display = 'none';
-      }
-    });
-
-    // Show hint — recording continues until key release
-    statusEl.textContent = 'OK — release Ctrl+Space';
-    statusEl.classList.remove('hidden');
-
-    // Send to main process
-    if (window.tlw) {
-      window.tlw.sendAction(action);
-    }
-  });
-});
-
 // ─── Events from main process ────────────────────────────────
 
-// When recording stops (key released), show processing state
 if (window.tlw) {
   window.tlw.onRecordingStop(() => {
     if (animationId) {
@@ -107,19 +118,14 @@ if (window.tlw) {
     actionsContainer.classList.add('hidden');
   });
 
-  // Reset state when new recording starts
   window.tlw.onRecordingStart(() => {
     selectedAction = null;
     actionLocked = false;
     canvas.style.opacity = '1';
     statusEl.classList.add('hidden');
 
-    // Reset buttons
-    document.querySelectorAll('.action-btn').forEach(b => {
-      b.classList.remove('selected');
-      b.style.display = '';
-      b.style.opacity = '';
-    });
+    // Reload actions (may have changed) and reset
+    loadActions();
 
     // Restart animation
     if (!animationId) animate();

@@ -22,65 +22,30 @@ function buildTranslatePrompt(text, context) {
   return `Detect the language of the following text. If it is ${native}, translate it to ${target}. Otherwise, translate it to ${native}. No formatting, no introduction, return ONLY the translation.\n\nText:\n${text}`;
 }
 
-// ─── Bubble actions (dictation context) ──────────────────────
-// Text comes from STT — may have transcription errors
+// ─── Action resolution ───────────────────────────────────────
+// Translate is built-in; all other actions come from config.customActions
 
-const BUBBLE_ACTIONS = {
-  grammar: {
-    label: 'Abc',
-    title: 'Correction',
-    buildPrompt: (text) =>
-      `Corrige les fautes d'orthographe, de grammaire et de ponctuation du texte suivant. Ne reformule pas, ne change pas le style, ne rajoute rien. Renvoie UNIQUEMENT le texte corrige.\n\nTexte :\n${text}`,
-  },
-  translate: {
+function getActions() {
+  const config = getConfig();
+  const actions = {};
+
+  // Built-in: translate (always first)
+  actions.translate = {
     label: 'Trad',
-    title: 'Translate',
     builtin: true,
-    buildPrompt: (text) => buildTranslatePrompt(text, 'bubble'),
-  },
-  'mail-fr': {
-    label: 'Mail FR',
-    title: 'Email francais',
-    buildPrompt: (text) =>
-      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
-  },
-  'mail-en': {
-    label: 'Mail EN',
-    title: 'Email anglais',
-    buildPrompt: (text) =>
-      `Traduis le texte francais suivant en un email professionnel en anglais. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
-  },
-};
+    buildPrompt: (text, context) => buildTranslatePrompt(text, context),
+  };
 
-// ─── Overlay actions (selection/double Ctrl+C context) ───────
-// Text is already written — could be any language
+  // Custom actions from config
+  for (const action of (config.customActions || [])) {
+    actions[action.id] = {
+      label: action.label,
+      buildPrompt: (text) => `${action.prompt}\n\nText:\n${text}`,
+    };
+  }
 
-const OVERLAY_ACTIONS = {
-  grammar: {
-    label: 'Abc',
-    title: 'Correction',
-    buildPrompt: (text) =>
-      `Corrige les fautes d'orthographe et de grammaire du texte suivant SANS le reformuler, SANS changer le style, SANS ajouter de contenu. Renvoie UNIQUEMENT le texte corrige.\n\nTexte :\n${text}`,
-  },
-  translate: {
-    label: 'Trad',
-    title: 'Translate',
-    builtin: true,
-    buildPrompt: (text) => buildTranslatePrompt(text, 'overlay'),
-  },
-  'mail-fr': {
-    label: 'Mail FR',
-    title: 'Email francais',
-    buildPrompt: (text) =>
-      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
-  },
-  'mail-en': {
-    label: 'Mail EN',
-    title: 'Email anglais',
-    buildPrompt: (text) =>
-      `Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
-  },
-};
+  return actions;
+}
 
 // ─── Gemini API call ─────────────────────────────────────────
 
@@ -122,17 +87,19 @@ async function callGemini(prompt) {
 }
 
 async function processBubbleAction(text, actionId) {
-  const action = BUBBLE_ACTIONS[actionId];
-  if (!action) throw new Error(`Unknown bubble action: ${actionId}`);
-  log(`[Gemini] Bubble action: ${action.title}`);
-  return callGemini(action.buildPrompt(text));
+  const actions = getActions();
+  const action = actions[actionId];
+  if (!action) throw new Error(`Unknown action: ${actionId}`);
+  log(`[Gemini] Bubble action: ${action.label}`);
+  return callGemini(action.buildPrompt(text, 'bubble'));
 }
 
 async function processOverlayAction(text, actionId) {
-  const action = OVERLAY_ACTIONS[actionId];
-  if (!action) throw new Error(`Unknown overlay action: ${actionId}`);
-  log(`[Gemini] Overlay action: ${action.title}`);
-  return callGemini(action.buildPrompt(text));
+  const actions = getActions();
+  const action = actions[actionId];
+  if (!action) throw new Error(`Unknown action: ${actionId}`);
+  log(`[Gemini] Overlay action: ${action.label}`);
+  return callGemini(action.buildPrompt(text, 'overlay'));
 }
 
 async function processCustomPrompt(text, customPrompt) {
@@ -140,8 +107,7 @@ async function processCustomPrompt(text, customPrompt) {
 }
 
 module.exports = {
-  BUBBLE_ACTIONS,
-  OVERLAY_ACTIONS,
+  getActions,
   processBubbleAction,
   processOverlayAction,
   processCustomPrompt,
