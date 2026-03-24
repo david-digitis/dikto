@@ -58,9 +58,15 @@ app.whenReady().then(async () => {
       setConfigValue('switchThreshold', seconds);
       log(`[TLW] Switch threshold: ${seconds}s`);
     },
+    onLanguageChange: (key, lang) => {
+      setConfigValue(key, lang);
+      log(`[TLW] ${key}: ${lang}`);
+    },
     currentApiKey: config.geminiApiKey || '',
     autoCorrectionEnabled: config.autoCorrection?.enabled || false,
     switchThreshold: config.switchThreshold || 10,
+    nativeLanguage: config.nativeLanguage || 'French',
+    targetLanguage: config.targetLanguage || 'English',
   });
 
   // IPC: Gemini key from dialog

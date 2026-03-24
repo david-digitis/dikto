@@ -7,6 +7,24 @@ const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GE
 // ─── Bubble actions (dictation context) ──────────────────────
 // Text comes from STT — may have transcription errors
 
+// ─── Translation prompt builder ─────────────────────────────
+
+function buildTranslatePrompt(text, context) {
+  const config = getConfig();
+  const native = config.nativeLanguage || 'French';
+  const target = config.targetLanguage || 'English';
+
+  if (context === 'bubble') {
+    // Dictation: user spoke in native language, translate to target
+    return `Translate the following text to ${target}. No formatting, no introduction, return ONLY the translation.\n\nText:\n${text}`;
+  }
+  // Overlay: detect language and translate in the right direction
+  return `Detect the language of the following text. If it is ${native}, translate it to ${target}. Otherwise, translate it to ${native}. No formatting, no introduction, return ONLY the translation.\n\nText:\n${text}`;
+}
+
+// ─── Bubble actions (dictation context) ──────────────────────
+// Text comes from STT — may have transcription errors
+
 const BUBBLE_ACTIONS = {
   grammar: {
     label: 'Abc',
@@ -16,26 +34,26 @@ const BUBBLE_ACTIONS = {
   },
   translate: {
     label: 'Trad',
-    title: 'Traduire en anglais',
-    buildPrompt: (text) =>
-      `Traduis le texte suivant en anglais. Pas de mise en forme, pas d'introduction, renvoie UNIQUEMENT la traduction.\n\nTexte :\n${text}`,
+    title: 'Translate',
+    builtin: true,
+    buildPrompt: (text) => buildTranslatePrompt(text, 'bubble'),
   },
   'mail-fr': {
     label: 'Mail FR',
     title: 'Email francais',
     buildPrompt: (text) =>
-      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
   'mail-en': {
     label: 'Mail EN',
     title: 'Email anglais',
     buildPrompt: (text) =>
-      `Traduis le texte francais suivant en un email professionnel en anglais. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Traduis le texte francais suivant en un email professionnel en anglais. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
 };
 
 // ─── Overlay actions (selection/double Ctrl+C context) ───────
-// Text is already written — could be FR or EN
+// Text is already written — could be any language
 
 const OVERLAY_ACTIONS = {
   grammar: {
@@ -46,21 +64,21 @@ const OVERLAY_ACTIONS = {
   },
   translate: {
     label: 'Trad',
-    title: 'Traduire',
-    buildPrompt: (text) =>
-      `Detecte la langue du texte suivant. Si c'est du francais, traduis-le en anglais. Si c'est de l'anglais, traduis-le en francais. Pas de mise en forme, pas d'introduction, renvoie UNIQUEMENT la traduction.\n\nTexte :\n${text}`,
+    title: 'Translate',
+    builtin: true,
+    buildPrompt: (text) => buildTranslatePrompt(text, 'overlay'),
   },
   'mail-fr': {
     label: 'Mail FR',
     title: 'Email francais',
     buildPrompt: (text) =>
-      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Redige un email professionnel en francais a partir du texte suivant. Detecte le ton (tutoiement/vouvoiement) et adapte la signature :\n- Si tutoiement : "Bien a toi,\\nDavid"\n- Si vouvoiement : "Cordialement,\\nDavid"\n\nRenvoie UNIQUEMENT l'email, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
   'mail-en': {
     label: 'Mail EN',
     title: 'Email anglais',
     buildPrompt: (text) =>
-      `Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid Bertrand"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
+      `Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l'email en anglais, rien d'autre. Pas d'objet.\n\nTexte :\n${text}`,
   },
 };
 

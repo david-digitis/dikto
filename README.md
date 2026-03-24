@@ -17,24 +17,36 @@ No cloud STT, no latency, no subscription. The transcription happens entirely on
 1. **Select text** anywhere, press `Ctrl+C` twice quickly
 2. An overlay appears with 4 actions:
    - **Abc** — fix spelling & grammar
-   - **Trad** — translate (auto-detects FR/EN)
+   - **Trad** — smart translate (auto-detects language direction)
    - **Mail FR** — rewrite as professional French email
    - **Mail EN** — rewrite as professional English email
 3. Click **Copy** or **Paste** to insert the result
+
+![Smart translate overlay](docs/deepl-mode.png)
+
+### Smart translate (DeepL-like)
+
+Set your **native language** and **target language** in the tray menu. The Trad button automatically translates in the right direction:
+
+- Dictation (bubble): always translates to your target language
+- Selection (overlay): detects the language — if it's your native, translates to target; otherwise translates to native
+
+Supports: French, English, German, Spanish, Italian, Portuguese, Dutch.
 
 ## Features
 
 - **Local STT** via [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) — no internet needed for transcription
 - **Dual engine** — Parakeet TDT v3 for short segments (~50ms), auto-switches to Whisper Turbo for longer recordings (configurable threshold)
+- **Smart translate** — configurable language pair, auto-detects direction like DeepL
 - **AI text processing** via Gemini 2.5 Flash Lite — correction, translation, email formatting
 - **Auto-paste** — text goes straight into the focused app (VBScript on Windows, xdotool/ydotool on Linux)
 - **Push-to-talk** — true hold/release via uiohook-napi, no key repeat issues
 - **Multi-monitor** — all windows open on the screen where your cursor is
-- **System tray** — 3 states (idle/recording/processing), microphone selection, settings
+- **System tray** — full settings: microphone, STT models, language pair, Whisper threshold, API key
 - **Encrypted config** — Gemini API key stored via Electron safeStorage (DPAPI on Windows, libsecret on Linux)
 - **Model manager** — download/delete STT models from the app
 
-![Model manager](docs/model-manager.png)
+![Tray menu](docs/tray-menu.png)
 
 ## STT Models
 
@@ -134,4 +146,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Author
 
-David Bertrand — [Digitis](https://digitis.cloud)
+David — [Digitis](https://digitis.cloud)

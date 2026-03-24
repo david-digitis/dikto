@@ -89,6 +89,12 @@ body {
   transform: scale(0.95);
 }
 
+.action-btn.builtin::before {
+  content: '\1F310';
+  font-size: 9px;
+  margin-right: 3px;
+}
+
 /* Status text */
 .status {
   color: #94a3b8;

@@ -7,6 +7,8 @@ let config = {
   modelsPath: '',
   activeModel: 'parakeet-tdt-v3-int8',
   switchThreshold: 10, // seconds — switch from Parakeet to Whisper
+  nativeLanguage: 'French',
+  targetLanguage: 'English',
   autoCorrection: {
     enabled: false,
     prompt: 'Corrige les erreurs de transcription et de ponctuation, sans reformuler. Renvoie uniquement le texte corrige.',
