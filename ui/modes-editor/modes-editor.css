@@ -1,9 +1,11 @@
+@import url('../theme.css');
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #0f172a;
-  color: #e2e8f0;
+  font-family: var(--font);
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .container {
@@ -17,38 +19,38 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 14px 18px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
 }
 
 .header h1 {
   font-size: 16px;
   font-weight: 700;
-  color: #f97316;
+  color: var(--accent);
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-size: 20px;
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
   -webkit-app-region: no-drag;
 }
-.close-btn:hover { color: #e2e8f0; }
+.close-btn:hover { color: var(--text-primary); }
 
 .hint {
   padding: 10px 18px;
   font-size: 12px;
-  color: #94a3b8;
-  border-bottom: 1px solid #1e293b;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
 }
 
 .builtin-tag {
-  color: #f97316;
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -63,14 +65,14 @@ body {
 
 /* Mode card */
 .mode-card {
-  background: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   padding: 12px;
 }
 
 .mode-card.editing {
-  border-color: #f97316;
+  border-color: var(--accent);
 }
 
 .mode-header {
@@ -83,13 +85,13 @@ body {
 .mode-label-display {
   font-weight: 700;
   font-size: 14px;
-  color: #e2e8f0;
+  color: var(--text-primary);
   flex: 1;
 }
 
 .mode-prompt-preview {
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.4;
   max-height: 36px;
   overflow: hidden;
@@ -103,16 +105,17 @@ body {
 }
 
 .btn-edit, .btn-delete {
-  background: #334155;
-  color: #94a3b8;
-  border: 1px solid #475569;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hover);
   border-radius: 4px;
   padding: 3px 10px;
   font-size: 11px;
   cursor: pointer;
+  font-family: var(--font);
 }
-.btn-edit:hover { color: #e2e8f0; border-color: #f97316; }
-.btn-delete:hover { color: #f87171; border-color: #f87171; }
+.btn-edit:hover { color: var(--text-primary); border-color: var(--accent); }
+.btn-delete:hover { color: var(--error); border-color: var(--error); }
 
 /* Edit form */
 .edit-form {
@@ -123,25 +126,25 @@ body {
 
 .edit-form label {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
 .edit-form input {
-  background: #0f172a;
-  color: #e2e8f0;
-  border: 1px solid #475569;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hover);
   border-radius: 4px;
   padding: 6px 8px;
   font-size: 13px;
   font-family: inherit;
 }
-.edit-form input:focus { outline: none; border-color: #f97316; }
+.edit-form input:focus { outline: none; border-color: var(--accent); }
 
 .edit-form textarea {
-  background: #0f172a;
-  color: #e2e8f0;
-  border: 1px solid #475569;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hover);
   border-radius: 4px;
   padding: 6px 8px;
   font-size: 12px;
@@ -150,7 +153,7 @@ body {
   min-height: 80px;
   line-height: 1.5;
 }
-.edit-form textarea:focus { outline: none; border-color: #f97316; }
+.edit-form textarea:focus { outline: none; border-color: var(--accent); }
 
 .edit-buttons {
   display: flex;
@@ -159,44 +162,46 @@ body {
 }
 
 .btn-save {
-  background: #f97316;
-  color: #0f172a;
+  background: var(--accent);
+  color: var(--accent-text);
   border: none;
   border-radius: 4px;
   padding: 5px 14px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  font-family: var(--font);
 }
-.btn-save:hover { background: #fb923c; }
+.btn-save:hover { background: var(--accent-hover); }
 
 .btn-cancel {
-  background: #334155;
-  color: #e2e8f0;
-  border: 1px solid #475569;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hover);
   border-radius: 4px;
   padding: 5px 14px;
   font-size: 12px;
   cursor: pointer;
+  font-family: var(--font);
 }
-.btn-cancel:hover { background: #475569; }
+.btn-cancel:hover { background: rgba(255, 255, 255, 0.1); }
 
 /* Footer */
 .footer {
   padding: 12px 18px;
-  border-top: 1px solid #334155;
-  background: #1e293b;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
 }
 
 .btn-add {
   width: 100%;
-  background: #334155;
-  color: #94a3b8;
-  border: 1px dashed #475569;
-  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-sm);
   padding: 8px;
   font-size: 13px;
   cursor: pointer;
   font-family: inherit;
 }
-.btn-add:hover { color: #f97316; border-color: #f97316; }
+.btn-add:hover { color: var(--accent); border-color: var(--accent); }

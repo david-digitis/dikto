@@ -7,6 +7,10 @@ const loadingEl = document.getElementById('loading');
 let sourceText = '';
 let resultText = '';
 
+function fitWindow() {
+  // Fixed size — no dynamic resize
+}
+
 // ─── Load action buttons dynamically ─────────────────────────
 
 async function loadActions() {
@@ -38,8 +42,10 @@ async function onActionClick(btn, actionId) {
     resultTextEl.textContent = result;
     loadingEl.classList.add('hidden');
     resultAreaEl.classList.remove('hidden');
+    fitWindow();
   } catch (err) {
     loadingEl.textContent = 'Error: ' + err.message;
+    fitWindow();
   }
 }
 
@@ -50,12 +56,12 @@ loadActions();
 if (window.tlw) {
   window.tlw.onOverlayText((event, text) => {
     sourceText = text;
-    sourceTextEl.textContent = text.length > 300 ? text.substring(0, 300) + '...' : text;
+    sourceTextEl.textContent = text;
     resultAreaEl.classList.add('hidden');
     loadingEl.classList.add('hidden');
     actionsRow.querySelectorAll('.action-btn').forEach(b => b.classList.remove('selected'));
     // Reload actions (may have changed)
-    loadActions();
+    loadActions().then(fitWindow);
   });
 }
 

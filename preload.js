@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('tlw', {
   // Overlay actions
   sendOverlayAction: (text, action) => ipcRenderer.invoke('overlay-action', text, action),
   closeOverlay: () => ipcRenderer.send('close-overlay'),
+  resizeOverlay: (width, height) => ipcRenderer.send('resize-overlay', width, height),
   copyToClipboard: (text) => ipcRenderer.send('copy-to-clipboard', text),
   insertText: (text) => ipcRenderer.send('insert-text', text),
 

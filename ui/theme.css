@@ -1,0 +1,36 @@
+:root {
+  /* Primary accent — turquoise */
+  --accent: #22d3ee;
+  --accent-hover: #67e8f9;
+  --accent-text: #111115;
+
+  /* Backgrounds */
+  --bg-primary: #111115;
+  --bg-secondary: #1a1a20;
+  --bg-tertiary: #2a2a32;
+  --bg-input: #0d0d10;
+  --bg-surface: rgba(255, 255, 255, 0.06);
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --border-accent: var(--accent);
+
+  /* Text */
+  --text-primary: rgba(255, 255, 255, 0.9);
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --text-muted: rgba(255, 255, 255, 0.3);
+
+  /* Status */
+  --success: #22c55e;
+  --error: #f87171;
+  --info: #38bdf8;
+
+  /* Typography */
+  --font: 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}

@@ -387,14 +387,14 @@ function getBubblePosition() {
   };
 }
 
-function getOverlayPosition() {
+function getOverlayPosition(w = 800, h = 500) {
   const display = getActiveDisplay();
   const { x, y, width, height } = display.workArea;
   return {
-    width: 500,
-    height: 420,
-    x: x + Math.round(width / 2 - 250),
-    y: y + Math.round(height / 2 - 210),
+    width: w,
+    height: h,
+    x: x + Math.round(width / 2 - w / 2),
+    y: y + Math.round(height / 2 - h / 2),
   };
 }
 
@@ -485,7 +485,9 @@ function showOverlay(text) {
     x: pos.x,
     y: pos.y,
     frame: false,
-    transparent: true,
+    transparent: false,
+    backgroundColor: '#111115',
+    hasShadow: true,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
@@ -514,6 +516,20 @@ function hideOverlay() {
     overlayWindow.hide();
   }
 }
+
+ipcMain.on('resize-overlay', (event, width, height) => {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const display = getActiveDisplay();
+  const { x, y, width: dw, height: dh } = display.workArea;
+  const w = Math.min(width, dw - 40);
+  const h = Math.min(height, dh - 40);
+  overlayWindow.setBounds({
+    width: w,
+    height: h,
+    x: x + Math.round(dw / 2 - w / 2),
+    y: y + Math.round(dh / 2 - h / 2),
+  });
+});
 
 // ─── IPC handlers ─────────────────────────────────────────────
 
