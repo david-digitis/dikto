@@ -108,6 +108,8 @@ function buildMenu(micDevices) {
   const contextMenu = Menu.buildFromTemplate([
     { label: 'The Last Whisper v0.3.0', enabled: false },
     { type: 'separator' },
+    // ─── Transcription ───
+    { label: 'Transcription', enabled: false },
     { label: 'Microphone', submenu: micSubmenu },
     {
       label: 'STT Models...',
@@ -118,6 +120,22 @@ function buildMenu(micDevices) {
         ipcMain.emit('open-model-manager');
       }
     },
+    {
+      label: `Whisper switch: ${switchThreshold}s`,
+      submenu: [5, 8, 10, 15, 20, 30].map(val => ({
+        label: `${val}s`,
+        type: 'radio',
+        checked: val === switchThreshold,
+        click: () => {
+          switchThreshold = val;
+          log(`[Tray] Switch threshold: ${val}s`);
+          if (onSwitchThresholdChange) onSwitchThresholdChange(val);
+        }
+      }))
+    },
+    { type: 'separator' },
+    // ─── Post-processing ───
+    { label: 'Post-processing', enabled: false },
     {
       label: 'Action modes...',
       type: 'normal',
@@ -137,20 +155,6 @@ function buildMenu(micDevices) {
         if (onAutoCorrectionToggle) onAutoCorrectionToggle(autoCorrectionEnabled);
       }
     },
-    {
-      label: `Whisper switch: ${switchThreshold}s`,
-      submenu: [5, 8, 10, 15, 20, 30].map(val => ({
-        label: `${val}s`,
-        type: 'radio',
-        checked: val === switchThreshold,
-        click: () => {
-          switchThreshold = val;
-          log(`[Tray] Switch threshold: ${val}s`);
-          if (onSwitchThresholdChange) onSwitchThresholdChange(val);
-        }
-      }))
-    },
-    { type: 'separator' },
     {
       label: `Native language: ${nativeLanguage}`,
       submenu: LANGUAGES.map(lang => ({
@@ -178,44 +182,40 @@ function buildMenu(micDevices) {
       }))
     },
     { type: 'separator' },
+    // ─── Clipboard ───
+    { label: 'Clipboard', enabled: false },
     {
       label: 'Clipboard history',
-      submenu: [
-        {
-          label: 'Enabled',
-          type: 'checkbox',
-          checked: clipboardHistoryEnabled,
-          click: (menuItem) => {
-            clipboardHistoryEnabled = menuItem.checked;
-            log(`[Tray] Clipboard history: ${clipboardHistoryEnabled ? 'ON' : 'OFF'}`);
-            if (onClipboardHistoryToggle) onClipboardHistoryToggle(clipboardHistoryEnabled);
-          }
-        },
-        { type: 'separator' },
-        {
-          label: `Max entries: ${clipboardMaxEntries}`,
-          submenu: [50, 100, 200, 500].map(val => ({
-            label: `${val}`,
-            type: 'radio',
-            checked: val === clipboardMaxEntries,
-            click: () => {
-              clipboardMaxEntries = val;
-              log(`[Tray] Clipboard max entries: ${val}`);
-              if (onClipboardMaxEntries) onClipboardMaxEntries(val);
-            }
-          }))
-        },
-        { type: 'separator' },
-        {
-          label: 'Clear history',
-          click: () => {
-            log('[Tray] Clear clipboard history');
-            if (onClipboardClear) onClipboardClear();
-          }
+      type: 'checkbox',
+      checked: clipboardHistoryEnabled,
+      click: (menuItem) => {
+        clipboardHistoryEnabled = menuItem.checked;
+        log(`[Tray] Clipboard history: ${clipboardHistoryEnabled ? 'ON' : 'OFF'}`);
+        if (onClipboardHistoryToggle) onClipboardHistoryToggle(clipboardHistoryEnabled);
+      }
+    },
+    {
+      label: `Max entries: ${clipboardMaxEntries}`,
+      submenu: [50, 100, 200, 500].map(val => ({
+        label: `${val}`,
+        type: 'radio',
+        checked: val === clipboardMaxEntries,
+        click: () => {
+          clipboardMaxEntries = val;
+          log(`[Tray] Clipboard max entries: ${val}`);
+          if (onClipboardMaxEntries) onClipboardMaxEntries(val);
         }
-      ]
+      }))
+    },
+    {
+      label: 'Clear history',
+      click: () => {
+        log('[Tray] Clear clipboard history');
+        if (onClipboardClear) onClipboardClear();
+      }
     },
     { type: 'separator' },
+    // ─── General ───
     { label: apiKeyLabel, enabled: false },
     {
       label: 'Configure Gemini API key...',
