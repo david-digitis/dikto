@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <link rel="stylesheet" href="clipboard.css">
+</head>
+<body>
+  <div class="container">
+    <div class="search-bar">
+      <input type="text" id="search" placeholder="Search clipboard history..." autofocus />
+      <span class="entry-count" id="entry-count"></span>
+    </div>
+    <div class="history-list" id="history-list">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+  <script src="clipboard.js"></script>
+</body>
+</html>
