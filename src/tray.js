@@ -9,11 +9,16 @@ let onApiKeySet = null;
 let onAutoCorrectionToggle = null;
 let onSwitchThresholdChange = null;
 let onLanguageChange = null;
+let onClipboardHistoryToggle = null;
+let onClipboardMaxEntries = null;
+let onClipboardClear = null;
 let currentApiKey = '';
 let autoCorrectionEnabled = false;
 let switchThreshold = 10;
 let nativeLanguage = 'French';
 let targetLanguage = 'English';
+let clipboardHistoryEnabled = false;
+let clipboardMaxEntries = 100;
 
 const LANGUAGES = ['French', 'English', 'German', 'Spanish', 'Italian', 'Portuguese', 'Dutch'];
 
@@ -61,11 +66,16 @@ function initTray(app, callbacks) {
   onAutoCorrectionToggle = callbacks.onAutoCorrectionToggle;
   onSwitchThresholdChange = callbacks.onSwitchThresholdChange;
   onLanguageChange = callbacks.onLanguageChange;
+  onClipboardHistoryToggle = callbacks.onClipboardHistoryToggle;
+  onClipboardMaxEntries = callbacks.onClipboardMaxEntries;
+  onClipboardClear = callbacks.onClipboardClear;
   currentApiKey = callbacks.currentApiKey || '';
   autoCorrectionEnabled = callbacks.autoCorrectionEnabled || false;
   switchThreshold = callbacks.switchThreshold || 10;
   nativeLanguage = callbacks.nativeLanguage || 'French';
   targetLanguage = callbacks.targetLanguage || 'English';
+  clipboardHistoryEnabled = callbacks.clipboardHistoryEnabled || false;
+  clipboardMaxEntries = callbacks.clipboardMaxEntries || 100;
 
   const icon = ICONS.idle();
   tray = new Tray(icon);
@@ -166,6 +176,44 @@ function buildMenu(micDevices) {
           if (onLanguageChange) onLanguageChange('targetLanguage', lang);
         }
       }))
+    },
+    { type: 'separator' },
+    {
+      label: 'Clipboard history',
+      submenu: [
+        {
+          label: 'Enabled',
+          type: 'checkbox',
+          checked: clipboardHistoryEnabled,
+          click: (menuItem) => {
+            clipboardHistoryEnabled = menuItem.checked;
+            log(`[Tray] Clipboard history: ${clipboardHistoryEnabled ? 'ON' : 'OFF'}`);
+            if (onClipboardHistoryToggle) onClipboardHistoryToggle(clipboardHistoryEnabled);
+          }
+        },
+        { type: 'separator' },
+        {
+          label: `Max entries: ${clipboardMaxEntries}`,
+          submenu: [50, 100, 200, 500].map(val => ({
+            label: `${val}`,
+            type: 'radio',
+            checked: val === clipboardMaxEntries,
+            click: () => {
+              clipboardMaxEntries = val;
+              log(`[Tray] Clipboard max entries: ${val}`);
+              if (onClipboardMaxEntries) onClipboardMaxEntries(val);
+            }
+          }))
+        },
+        { type: 'separator' },
+        {
+          label: 'Clear history',
+          click: () => {
+            log('[Tray] Clear clipboard history');
+            if (onClipboardClear) onClipboardClear();
+          }
+        }
+      ]
     },
     { type: 'separator' },
     { label: apiKeyLabel, enabled: false },

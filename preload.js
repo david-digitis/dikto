@@ -31,6 +31,13 @@ contextBridge.exposeInMainWorld('tlw', {
   onDownloadProgress: (callback) => ipcRenderer.on('download-progress', callback),
   onDownloadComplete: (callback) => ipcRenderer.on('download-complete', callback),
 
+  // Clipboard history
+  getClipboardHistory: () => ipcRenderer.invoke('get-clipboard-history'),
+  getClipboardImage: (filename) => ipcRenderer.invoke('get-clipboard-image', filename),
+  pasteClipboardEntry: (content, type) => ipcRenderer.send('paste-clipboard-entry', content, type),
+  closeClipboard: () => ipcRenderer.send('close-clipboard'),
+  onClipboardShow: (callback) => ipcRenderer.on('clipboard-show', callback),
+
   // Events from main
   onRecordingStart: (callback) => ipcRenderer.on('recording-start', callback),
   onRecordingStop: (callback) => ipcRenderer.on('recording-stop', callback),

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, screen, clipboard, nativeImage } = require('electron');
 const path = require('path');
 
 // Linux: disable sandbox (AppImage has no SUID chrome-sandbox)
@@ -9,9 +9,10 @@ const { log, error: logError } = require('./src/logger');
 const { initTray, setTrayState, updateMicList } = require('./src/tray');
 const { initSTT, transcribe, getActiveModelName } = require('./src/stt');
 const { startRecording, stopRecording, setAudioDevice, listAudioDevices } = require('./src/recorder');
-const { pasteText } = require('./src/paste');
+const { pasteText, simulatePaste } = require('./src/paste');
 const { loadConfig, getConfig } = require('./src/config');
 const { playStart, playDone, playError } = require('./src/sounds');
+const clipHistory = require('./src/clipboard-history');
 
 // Linux: use evdev for hotkeys (uiohook doesn't work under Wayland)
 const isLinux = process.platform === 'linux';
@@ -73,11 +74,24 @@ app.whenReady().then(async () => {
       setConfigValue(key, lang);
       log(`[TLW] ${key}: ${lang}`);
     },
+    onClipboardHistoryToggle: (enabled) => {
+      setConfigValue('clipboardHistory.enabled', enabled);
+      if (enabled) clipHistory.start(); else clipHistory.stop();
+    },
+    onClipboardMaxEntries: (max) => {
+      setConfigValue('clipboardHistory.maxEntries', max);
+      clipHistory.setMaxEntries(max);
+    },
+    onClipboardClear: () => {
+      clipHistory.clearHistory();
+    },
     currentApiKey: config.geminiApiKey || '',
     autoCorrectionEnabled: config.autoCorrection?.enabled || false,
     switchThreshold: config.switchThreshold || 10,
     nativeLanguage: config.nativeLanguage || 'French',
     targetLanguage: config.targetLanguage || 'English',
+    clipboardHistoryEnabled: config.clipboardHistory?.enabled || false,
+    clipboardMaxEntries: config.clipboardHistory?.maxEntries || 100,
   });
 
   // IPC: Gemini key from dialog
@@ -113,6 +127,15 @@ app.whenReady().then(async () => {
   }, 1000);
 
   registerPushToTalk();
+
+  // Clipboard history
+  clipHistory.init(app.getPath('userData'));
+  if (config.clipboardHistory?.enabled) {
+    clipHistory.start();
+  }
+  if (config.clipboardHistory?.maxEntries) {
+    clipHistory.setMaxEntries(config.clipboardHistory.maxEntries);
+  }
 
   // Show onboarding if first launch (no API key configured)
   if (!config.geminiApiKey && !config.onboardingDone) {
@@ -242,6 +265,11 @@ function registerPushToTalkUiohook() {
       } else {
         lastCtrlCTime = now;
       }
+    }
+    // Ctrl+B — clipboard history
+    if (e.keycode === UiohookKey.B && ctrlDown && !isRecording) {
+      log('[Hotkey] Ctrl+B — clipboard history');
+      toggleClipboardWindow();
     }
   });
 
@@ -529,6 +557,123 @@ ipcMain.on('resize-overlay', (event, width, height) => {
     x: x + Math.round(dw / 2 - w / 2),
     y: y + Math.round(dh / 2 - h / 2),
   });
+});
+
+// ─── Clipboard History window ─────────────────────────────────
+
+let clipboardWindow = null;
+let clipboardPasting = false;
+
+function getClipboardPosition() {
+  const display = getActiveDisplay();
+  const { x, y, width, height } = display.workArea;
+  const w = 500;
+  const h = 520;
+  return { width: w, height: h, x: x + Math.round(width / 2 - w / 2), y: y + Math.round(height / 2 - h / 2) };
+}
+
+function toggleClipboardWindow() {
+  if (clipboardWindow && !clipboardWindow.isDestroyed() && clipboardWindow.isVisible()) {
+    clipboardWindow.hide();
+    return;
+  }
+  showClipboardWindow();
+}
+
+function showClipboardWindow() {
+  if (clipboardWindow && !clipboardWindow.isDestroyed()) {
+    const pos = getClipboardPosition();
+    clipboardWindow.setBounds(pos);
+    clipboardWindow.webContents.send('clipboard-show');
+    clipboardWindow.show();
+    clipboardWindow.focus();
+    return;
+  }
+
+  const pos = getClipboardPosition();
+  clipboardWindow = new BrowserWindow({
+    width: pos.width,
+    height: pos.height,
+    x: pos.x,
+    y: pos.y,
+    frame: false,
+    transparent: false,
+    backgroundColor: '#111115',
+    hasShadow: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    }
+  });
+
+  clipboardWindow.loadFile('ui/clipboard/clipboard.html');
+  clipboardWindow.once('ready-to-show', () => {
+    clipboardWindow.show();
+    clipboardWindow.focus();
+  });
+
+  clipboardWindow.on('blur', () => {
+    if (clipboardWindow && !clipboardWindow.isDestroyed() && !clipboardPasting) {
+      clipboardWindow.hide();
+    }
+  });
+
+  clipboardWindow.webContents.on('console-message', (event, level, message) => {
+    log(`[Clipboard] ${message}`);
+  });
+}
+
+ipcMain.handle('get-clipboard-history', () => {
+  return clipHistory.getHistory();
+});
+
+ipcMain.handle('get-clipboard-image', (event, filename) => {
+  return clipHistory.getImageAsDataUrl(filename);
+});
+
+ipcMain.on('paste-clipboard-entry', async (event, content, type) => {
+  log(`[Clipboard] Paste entry (${type})`);
+  clipboardPasting = true;
+
+  if (type === 'text') {
+    clipboard.writeText(content);
+  } else if (type === 'image') {
+    const imgPath = path.join(app.getPath('userData'), 'clipboard-history', 'images', content);
+    const img = nativeImage.createFromPath(imgPath);
+    if (!img.isEmpty()) {
+      clipboard.writeImage(img);
+    }
+  }
+
+  // Minimize first to return focus to previous app (same as overlay)
+  if (clipboardWindow && !clipboardWindow.isDestroyed()) {
+    clipboardWindow.minimize();
+  }
+  await new Promise(r => setTimeout(r, 150));
+  if (clipboardWindow && !clipboardWindow.isDestroyed()) {
+    clipboardWindow.hide();
+  }
+
+  // Wait for OS to refocus the previous window
+  await new Promise(r => setTimeout(r, 200));
+  simulatePaste();
+  clipboardPasting = false;
+});
+
+ipcMain.on('close-clipboard', () => {
+  if (clipboardWindow && !clipboardWindow.isDestroyed()) {
+    clipboardWindow.hide();
+  }
+});
+
+ipcMain.on('clear-clipboard-history', () => {
+  clipHistory.clearHistory();
+  log('[Clipboard] History cleared');
 });
 
 // ─── IPC handlers ─────────────────────────────────────────────

@@ -26,6 +26,10 @@ let config = {
       prompt: 'Redige un email professionnel en anglais a partir du texte suivant. Detecte le ton :\n- Si informel : "Best,\\nDavid"\n- Si formel : "Best regards,\\nDavid"\n\nRenvoie UNIQUEMENT l\'email en anglais, rien d\'autre. Pas d\'objet.',
     },
   ],
+  clipboardHistory: {
+    enabled: false,
+    maxEntries: 100,
+  },
   autoCorrection: {
     enabled: false,
     prompt: 'Corrige les erreurs de transcription et de ponctuation, sans reformuler. Renvoie uniquement le texte corrige.',
