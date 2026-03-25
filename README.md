@@ -13,13 +13,11 @@
   <a href="https://github.com/david-digitis/dikto/stargazers"><img src="https://img.shields.io/github/stars/david-digitis/dikto?style=social" alt="GitHub stars"></a>
 </p>
 
-<!-- Demo video — uncomment when YouTube link is ready
 <p align="center">
-  <a href="https://youtu.be/YOUR_VIDEO_ID">
+  <a href="https://youtu.be/DR5IHBUNcUE">
     <img src="https://img.shields.io/badge/Watch%20demo-YouTube-red?style=for-the-badge&logo=youtube" alt="Watch demo on YouTube">
   </a>
 </p>
--->
 
 <p align="center">
   <img src="docs/demo-dictation.gif" alt="Demo: hold Ctrl+Space, speak, text appears at your cursor" width="700">
@@ -230,7 +228,7 @@ Check out the [open issues](https://github.com/david-digitis/dikto/issues) for i
 
 [MIT](LICENSE) — use it, fork it, build on it.
 
-Built by David at [Digitis](https://digitis.cloud).
+Built by David at [Digitis](https://digitis.be) | [Voicelab](https://voicelab.cloud)
 
 ---
 
