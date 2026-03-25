@@ -34,6 +34,7 @@ DIKTO/
 │   ├── paste.js            # Clipboard + auto-paste VBScript/dotool
 │   ├── models.js           # Download/gestion modeles STT
 │   ├── sounds.js           # Beeps feedback (start, done, error)
+│   ├── clipboard-history.js # Clipboard history manager (text + images)
 │   ├── logger.js           # File logger (debug.log in userData)
 │   ├── platform.js         # Abstractions OS (detection terminal, Wayland/X11)
 │   └── hotkeys-linux.js    # Linux hotkeys via evdev (Wayland compatible)
@@ -43,6 +44,7 @@ DIKTO/
 │   ├── overlay/            # Overlay IA (double Ctrl+C) + boutons dynamiques
 │   ├── models/             # Gestionnaire de modeles STT
 │   ├── modes-editor/       # Editeur de modes d'action custom
+│   ├── clipboard/          # Clipboard history UI (Ctrl+B)
 │   └── onboarding/         # Premier lancement (cle API, micro, raccourcis)
 ├── docs/                   # Screenshots pour README GitHub
 └── CLAUDE.md
@@ -82,13 +84,16 @@ DIKTO/
 - Modes par defaut : Abc (grammaire), Mail FR, Mail EN
 - Trad est built-in, pas editable, toujours present
 
+### Clipboard history (Ctrl+B)
+- Historique texte + images, recherche, navigation clavier (fleches + Enter)
+- Configurable : max entries (defaut 100), toggle on/off, clear
+- Images stockees dans userData/clipboard-history/images/
+- Ctrl+B toggle la fenetre (via uiohook sur Windows, evdev sur Linux)
+
 ### Configuration (tray menu)
-- Selection microphone
-- STT Models... (model manager)
-- Action modes... (editeur de modes)
-- Auto-correction Gemini (checkbox)
-- Whisper switch threshold (5s/8s/10s/15s/20s/30s)
-- Native language / Target language
+- **Transcription** : Microphone, STT Models..., Whisper switch threshold
+- **Post-processing** : Action modes..., Gemini auto-correction, Native/Target language
+- **Clipboard** : Clipboard history (toggle), Max entries, Clear history
 - Cle API Gemini (dialog, stockee chiffree)
 - Start at login (checkbox)
 - Quit
@@ -113,21 +118,29 @@ DIKTO/
 - **Sandbox Linux** : chrome-sandbox n'a pas le SUID bit dans l'AppImage, donc afterPack.js cree un wrapper qui passe --no-sandbox et ELECTRON_DISABLE_SANDBOX=1
 - **Focus** : Bubble non-focusable au show (showInactive). Overlay minimize avant insert pour refocus
 - **Multi-ecran** : Toutes les fenetres s'ouvrent sur l'ecran du curseur (screen.getCursorScreenPoint)
+- **IPC bridge** : `contextBridge.exposeInMainWorld('dikto', ...)` dans preload.js → `window.dikto.*` dans tous les UI
+- **CSP** : `script-src 'self'` dans les HTML → PAS de onclick inline, utiliser addEventListener dans les .js
 - **Actions dynamiques** : Bubble et overlay chargent les boutons via IPC get-actions au render
-- **Logs** : debug.log dans userData (~/.config/dikto/ sur Linux, %APPDATA% sur Windows)
+- **Logs** : debug.log dans userData (~/.config/dikto/ sur Linux, %APPDATA%/dikto/ sur Windows)
 - **ELECTRON_RUN_AS_NODE** : Doit etre unset pour lancer (VS Code le set). Le .desktop file le neutralise.
 - **Nom public** : David (pas de nom de famille dans le code — repo public)
 
 ## Design system
 
+Theme unifie defini dans `ui/theme.css` :
+
 ```
---bg-primary: #0f172a
---bg-secondary: #1e293b
---bg-tertiary: #334155
---text-primary: #e2e8f0
---text-secondary: #94a3b8
---accent: #f97316
---accent-hover: #fb923c
+--accent: #22d3ee              (turquoise)
+--accent-hover: #67e8f9
+--accent-text: #111115
+--bg-primary: #111115
+--bg-secondary: #1a1a20
+--bg-tertiary: #2a2a32
+--bg-input: #0d0d10
+--bg-surface: rgba(255,255,255,0.06)
+--border: rgba(255,255,255,0.08)
+--text-primary: rgba(255,255,255,0.9)
+--text-secondary: rgba(255,255,255,0.5)
 --success: #22c55e
 --error: #f87171
 --info: #38bdf8
@@ -173,5 +186,5 @@ Stockage : `%APPDATA%/dikto/models/` (Win) / `~/.config/dikto/models/` (Linux)
 ## GitHub
 
 - Repo : https://github.com/david-digitis/dikto
-- Release v0.2.0 publiee avec .exe portable + installeur NSIS
+- Release v0.3.0 : .exe portable + installeur NSIS (Linux AppImage a ajouter)
 - Licence MIT
