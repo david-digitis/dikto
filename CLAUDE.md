@@ -1,4 +1,4 @@
-# THE LAST WHISPER
+# DIKTO
 
 Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.3.0.
 
@@ -18,7 +18,7 @@ Desktop dictaphone with local STT + AI-powered text processing (translation, cor
 ## Architecture
 
 ```
-THE-LAST-WHISPER/
+DIKTO/
 ├── main.js                 # Main process — orchestration, hotkeys, windows
 ├── preload.js              # Bridge IPC securise (contextBridge)
 ├── preload-audio.js        # Bridge IPC pour audio worker
@@ -114,7 +114,7 @@ THE-LAST-WHISPER/
 - **Focus** : Bubble non-focusable au show (showInactive). Overlay minimize avant insert pour refocus
 - **Multi-ecran** : Toutes les fenetres s'ouvrent sur l'ecran du curseur (screen.getCursorScreenPoint)
 - **Actions dynamiques** : Bubble et overlay chargent les boutons via IPC get-actions au render
-- **Logs** : debug.log dans userData (~/.config/the-last-whisper/ sur Linux, %APPDATA% sur Windows)
+- **Logs** : debug.log dans userData (~/.config/dikto/ sur Linux, %APPDATA% sur Windows)
 - **ELECTRON_RUN_AS_NODE** : Doit etre unset pour lancer (VS Code le set). Le .desktop file le neutralise.
 - **Nom public** : David (pas de nom de famille dans le code — repo public)
 
@@ -137,7 +137,7 @@ THE-LAST-WHISPER/
 
 ```bash
 # Depuis un terminal systeme (PAS VS Code a cause de ELECTRON_RUN_AS_NODE)
-cd THE-LAST-WHISPER
+cd DIKTO
 npx electron .
 
 # Sous Wayland, si probleme de sandbox renderer:
@@ -168,10 +168,10 @@ sudo systemctl enable --now dotool.service
 | Parakeet TDT v3 int8 | parakeet-tdt-v3-int8 | ~464 MB | sherpa-onnx releases |
 | Whisper Turbo int8 | whisper-turbo | ~538 MB | sherpa-onnx releases |
 
-Stockage : `%APPDATA%/the-last-whisper/models/` (Win) / `~/.config/the-last-whisper/models/` (Linux)
+Stockage : `%APPDATA%/dikto/models/` (Win) / `~/.config/dikto/models/` (Linux)
 
 ## GitHub
 
-- Repo : https://github.com/david-digitis/the-last-whisper
+- Repo : https://github.com/david-digitis/dikto
 - Release v0.2.0 publiee avec .exe portable + installeur NSIS
 - Licence MIT

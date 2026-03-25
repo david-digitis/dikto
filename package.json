@@ -1,5 +1,5 @@
 {
-  "name": "the-last-whisper",
+  "name": "dikto",
   "version": "0.3.0",
   "description": "Dictaphone push-to-talk + assistant IA desktop — cross-platform",
   "main": "main.js",
@@ -14,8 +14,8 @@
     "test:stt": "node test-stt.js"
   },
   "build": {
-    "appId": "cloud.digitis.the-last-whisper",
-    "productName": "The Last Whisper",
+    "appId": "cloud.digitis.dikto",
+    "productName": "Dikto",
     "directories": {
       "output": "dist"
     },

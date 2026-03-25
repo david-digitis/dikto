@@ -1,6 +1,6 @@
 # Linux setup (Fedora/Wayland)
 
-The Last Whisper is developed and tested on Windows 11. This document covers what to check and adapt for Linux Fedora with GNOME/Wayland.
+Dikto is developed and tested on Windows 11. This document covers what to check and adapt for Linux Fedora with GNOME/Wayland.
 
 ## Status
 
@@ -49,8 +49,8 @@ Same approach as Windows: hidden BrowserWindow + `navigator.mediaDevices.getUser
 
 ### 4. STT models storage
 
-**Windows**: `%APPDATA%/the-last-whisper/models/`
-**Linux**: `~/.local/share/the-last-whisper/models/`
+**Windows**: `%APPDATA%/dikto/models/`
+**Linux**: `~/.local/share/dikto/models/`
 
 Handled automatically by `app.getPath('userData')`. Models must be re-downloaded on Linux (~464 MB for Parakeet, ~538 MB for Whisper Turbo). The in-app model manager handles this.
 
@@ -80,8 +80,8 @@ Without it, the tray icon may not appear. The app still works (hotkeys are indep
 
 ```bash
 # Clone the repo
-git clone https://github.com/david-digitis/the-last-whisper.git
-cd the-last-whisper
+git clone https://github.com/david-digitis/dikto.git
+cd dikto
 
 # Install dependencies (will download Linux-native binaries for sherpa-onnx and uiohook)
 npm install
@@ -102,8 +102,8 @@ npm install
 The in-app model manager can download models. To do it manually:
 
 ```bash
-mkdir -p ~/.local/share/the-last-whisper/models
-cd ~/.local/share/the-last-whisper/models
+mkdir -p ~/.local/share/dikto/models
+cd ~/.local/share/dikto/models
 curl -L https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2 | tar xjf -
 ```
 

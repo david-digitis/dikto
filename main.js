@@ -142,7 +142,7 @@ app.whenReady().then(async () => {
     showOnboarding();
   }
 
-  log('[TLW] The Last Whisper is ready');
+  log('[TLW] Dikto is ready');
   log('[TLW] Hold Ctrl+Space to record, release to transcribe');
 });
 

@@ -79,7 +79,7 @@ function initTray(app, callbacks) {
 
   const icon = ICONS.idle();
   tray = new Tray(icon);
-  tray.setToolTip('The Last Whisper — Idle');
+  tray.setToolTip('Dikto — Idle');
   buildMenu([]);
 
   // On Windows, also show menu on left click
@@ -106,7 +106,7 @@ function buildMenu(micDevices) {
     : 'Gemini key: (not configured)';
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'The Last Whisper v0.3.0', enabled: false },
+    { label: 'Dikto v0.3.0', enabled: false },
     { type: 'separator' },
     // ─── Transcription ───
     { label: 'Transcription', enabled: false },
@@ -248,7 +248,7 @@ function showApiKeyDialog() {
     minimizable: false,
     maximizable: false,
     alwaysOnTop: true,
-    title: 'The Last Whisper — Gemini API Key',
+    title: 'Dikto — Gemini API Key',
     webPreferences: {
       contextIsolation: false,
       nodeIntegration: true,
@@ -317,9 +317,9 @@ function setTrayState(state) {
   if (iconFn) tray.setImage(iconFn());
 
   const tooltips = {
-    idle: 'The Last Whisper — Idle',
-    recording: 'The Last Whisper — Recording...',
-    busy: 'The Last Whisper — Processing...',
+    idle: 'Dikto — Idle',
+    recording: 'Dikto — Recording...',
+    busy: 'Dikto — Processing...',
   };
   tray.setToolTip(tooltips[state] || tooltips.idle);
 }

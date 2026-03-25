@@ -14,7 +14,7 @@ try {
 }
 
 // Clear log on start
-fs.writeFileSync(logFile, `[${new Date().toISOString()}] === The Last Whisper started ===\n`);
+fs.writeFileSync(logFile, `[${new Date().toISOString()}] === Dikto started ===\n`);
 
 function log(...args) {
   const line = `[${new Date().toISOString()}] ${args.join(' ')}`;

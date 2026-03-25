@@ -1,6 +1,6 @@
 # Retour d'expérience : conversion Windows → Linux (Electron)
 
-Problèmes rencontrés lors de la conversion de **PC-Pilot** (même stack : Electron 33 + electron-builder 25, Fedora 43 Wayland). Ce document sert de checklist pour **The Last Whisper**.
+Problèmes rencontrés lors de la conversion de **PC-Pilot** (même stack : Electron 33 + electron-builder 25, Fedora 43 Wayland). Ce document sert de checklist pour **Dikto**.
 
 ---
 
@@ -11,9 +11,9 @@ Problèmes rencontrés lors de la conversion de **PC-Pilot** (même stack : Elec
 **Symptôme** : L'app ne démarre pas depuis le terminal VS Code, mais fonctionne depuis un terminal système.
 
 **Solutions appliquées** :
-- `delete process.env.ELECTRON_RUN_AS_NODE` au tout début de `main.js` (déjà en place dans the-last-whisper)
+- `delete process.env.ELECTRON_RUN_AS_NODE` au tout début de `main.js` (déjà en place dans dikto)
 - Dans le `.desktop` du RPM : `Exec=env ELECTRON_RUN_AS_NODE= /opt/AppName/binary %U`
-- Script `npm start` : `unset ELECTRON_RUN_AS_NODE && electron .` (déjà en place dans the-last-whisper)
+- Script `npm start` : `unset ELECTRON_RUN_AS_NODE && electron .` (déjà en place dans dikto)
 
 **Attention** : Le `delete process.env` dans main.js ne suffit PAS pour le binaire packagé — il s'exécute trop tard. La variable doit être supprimée AVANT le lancement du binaire (via le `.desktop` ou le script de lancement).
 
@@ -66,7 +66,7 @@ Sans cette extension, l'app tourne mais l'icône tray est invisible.
 
 ## 6. Auto-paste : xdotool vs ydotool
 
-**Problème** : `xdotool` ne fonctionne PAS sous Wayland natif (il utilise X11). The Last Whisper utilise déjà xdotool+ydotool dans son code.
+**Problème** : `xdotool` ne fonctionne PAS sous Wayland natif (il utilise X11). Dikto utilise déjà xdotool+ydotool dans son code.
 
 **Solutions** :
 - `ydotool` fonctionne sous Wayland (nécessite le service `ydotoold`)
