@@ -1,0 +1,59 @@
+name: Bug Report
+description: Something doesn't work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this bug.
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows 11
+        - Linux (Fedora/Wayland)
+        - Linux (other distro)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App Version
+      description: Check in tray menu or package.json
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: Installation type
+      options:
+        - Portable (.exe)
+        - Installer (NSIS)
+        - AppImage
+        - From source (npm)
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly. Include steps to reproduce.
+      placeholder: |
+        1. I pressed Ctrl+Space
+        2. I spoke for ~5 seconds
+        3. On release, nothing was pasted
+        Expected: text should appear at cursor
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (if available)
+      description: |
+        Check debug.log in:
+        - Windows: %APPDATA%/dikto/debug.log
+        - Linux: ~/.config/dikto/debug.log
+      render: shell

@@ -1,0 +1,32 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case, not just the feature
+      placeholder: "I frequently need to... but currently I have to..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work? Be specific.
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Which area?
+      options:
+        - Dictation / STT
+        - Translation
+        - AI overlay (double Ctrl+C)
+        - Clipboard manager
+        - Custom modes
+        - UI / UX
+        - Linux support
+        - Other
