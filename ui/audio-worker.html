@@ -14,8 +14,13 @@ let sourceNode = null;
 let processorNode = null;
 let audioChunks = [];
 let isCapturing = false;
+let currentDeviceId = null;
+let releaseTimer = null;
 
 const TARGET_SAMPLE_RATE = 16000;
+// Keep the mic stream alive between dictations to avoid getUserMedia cold-start
+// (Intel Smart Sound DSP can take ~900ms to initialize on each acquisition).
+const KEEP_ALIVE_MS = 60000;
 
 // On load: enumerate audio devices and log them
 (async function init() {
@@ -52,54 +57,100 @@ window.audioWorker.onListDevices(async () => {
   }
 });
 
+async function acquireMic(deviceId) {
+  const audioConstraints = {
+    channelCount: 1,
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: true,
+  };
+  if (deviceId) {
+    audioConstraints.deviceId = { exact: deviceId };
+    console.log('[AudioWorker] Requesting device:', deviceId.substring(0, 16) + '...');
+  } else {
+    console.log('[AudioWorker] Using default microphone');
+  }
+
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+  } catch (constraintErr) {
+    if (deviceId && constraintErr.name === 'OverconstrainedError') {
+      console.warn('[AudioWorker] Device ID not found, falling back to default mic');
+      delete audioConstraints.deviceId;
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+    } else {
+      throw constraintErr;
+    }
+  }
+
+  const track = mediaStream.getAudioTracks()[0];
+  const settings = track.getSettings();
+  console.log('[AudioWorker] Mic track:', track.label);
+  console.log('[AudioWorker] Settings:', JSON.stringify({
+    sampleRate: settings.sampleRate,
+    channelCount: settings.channelCount,
+    deviceId: settings.deviceId?.substring(0, 16),
+  }));
+
+  audioContext = new AudioContext();
+  sourceNode = audioContext.createMediaStreamSource(mediaStream);
+  currentDeviceId = deviceId || null;
+}
+
+function releaseMic() {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(t => t.stop());
+    mediaStream = null;
+  }
+  if (sourceNode) {
+    sourceNode.disconnect();
+    sourceNode = null;
+  }
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+  currentDeviceId = null;
+  releaseTimer = null;
+  console.log('[AudioWorker] Mic released (keep-alive expired)');
+}
+
+function scheduleRelease() {
+  if (releaseTimer) clearTimeout(releaseTimer);
+  releaseTimer = setTimeout(releaseMic, KEEP_ALIVE_MS);
+}
+
+function cancelRelease() {
+  if (releaseTimer) {
+    clearTimeout(releaseTimer);
+    releaseTimer = null;
+  }
+}
+
 window.audioWorker.onStartRecording(async (event, options) => {
   try {
+    cancelRelease();
     audioChunks = [];
-    isCapturing = true;
 
-    // Build audio constraints
-    const audioConstraints = {
-      channelCount: 1,
-      echoCancellation: false,
-      noiseSuppression: false,
-      autoGainControl: true,
-    };
+    const wantedDeviceId = (options && options.deviceId) || null;
+    const needsAcquire = !mediaStream || wantedDeviceId !== currentDeviceId;
 
-    // If a specific deviceId is provided, use it
-    if (options && options.deviceId) {
-      audioConstraints.deviceId = { exact: options.deviceId };
-      console.log('[AudioWorker] Requesting device:', options.deviceId.substring(0, 16) + '...');
-    } else {
-      console.log('[AudioWorker] Using default microphone');
-    }
-
-    // Request microphone access — fallback to default if exact device fails
-    try {
-      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-    } catch (constraintErr) {
-      if (options && options.deviceId && constraintErr.name === 'OverconstrainedError') {
-        console.warn('[AudioWorker] Device ID not found, falling back to default mic');
-        delete audioConstraints.deviceId;
-        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-      } else {
-        throw constraintErr;
+    if (needsAcquire) {
+      // Device changed or never acquired — cleanup then re-acquire
+      if (mediaStream) {
+        if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
+        if (audioContext) { audioContext.close(); audioContext = null; }
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
       }
+      const t0 = performance.now();
+      await acquireMic(wantedDeviceId);
+      console.log(`[AudioWorker] Mic acquisition took ${Math.round(performance.now() - t0)}ms`);
+    } else {
+      console.log('[AudioWorker] Reusing mic stream (keep-alive hit)');
     }
 
-    // Log which track we actually got
-    const track = mediaStream.getAudioTracks()[0];
-    const settings = track.getSettings();
-    console.log('[AudioWorker] Mic track:', track.label);
-    console.log('[AudioWorker] Settings:', JSON.stringify({
-      sampleRate: settings.sampleRate,
-      channelCount: settings.channelCount,
-      deviceId: settings.deviceId?.substring(0, 16),
-    }));
-
-    // Create AudioContext
-    audioContext = new AudioContext();
-    sourceNode = audioContext.createMediaStreamSource(mediaStream);
-
+    // Build processor for this capture (cheap, ~1ms)
     const bufferSize = 4096;
     processorNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
 
@@ -107,7 +158,6 @@ window.audioWorker.onStartRecording(async (event, options) => {
     processorNode.onaudioprocess = (e) => {
       if (!isCapturing) return;
       const inputData = e.inputBuffer.getChannelData(0);
-      // Track max amplitude to verify we're getting real audio
       for (let i = 0; i < inputData.length; i++) {
         const abs = Math.abs(inputData[i]);
         if (abs > maxAmplitude) maxAmplitude = abs;
@@ -118,9 +168,9 @@ window.audioWorker.onStartRecording(async (event, options) => {
     sourceNode.connect(processorNode);
     processorNode.connect(audioContext.destination);
 
+    isCapturing = true;
     console.log('[AudioWorker] Recording started at', audioContext.sampleRate, 'Hz');
 
-    // Log amplitude every second to verify audio is coming in
     const ampInterval = setInterval(() => {
       if (!isCapturing) { clearInterval(ampInterval); return; }
       console.log(`[AudioWorker] Max amplitude: ${maxAmplitude.toFixed(4)} (${maxAmplitude > 0.01 ? 'AUDIO OK' : 'SILENCE/NO SIGNAL'})`);
@@ -137,18 +187,18 @@ window.audioWorker.onStopRecording(() => {
   isCapturing = false;
 
   try {
-    if (mediaStream) {
-      mediaStream.getTracks().forEach(t => t.stop());
-      mediaStream = null;
-    }
+    // Detach processor to stop CPU usage. Keep mediaStream + audioContext + sourceNode
+    // alive for fast re-start (no getUserMedia cold-start on next dictation).
     if (processorNode) {
       processorNode.disconnect();
       processorNode = null;
     }
     if (sourceNode) {
       sourceNode.disconnect();
-      sourceNode = null;
     }
+
+    // Schedule full release after KEEP_ALIVE_MS of inactivity
+    scheduleRelease();
 
     if (audioChunks.length === 0) {
       window.audioWorker.sendError('No audio captured');
@@ -173,11 +223,6 @@ window.audioWorker.onStopRecording(() => {
       outputSamples = merged;
     } else {
       outputSamples = resample(merged, nativeSampleRate, TARGET_SAMPLE_RATE);
-    }
-
-    if (audioContext) {
-      audioContext.close();
-      audioContext = null;
     }
 
     // Check if we got actual audio or just silence
