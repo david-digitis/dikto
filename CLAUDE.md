@@ -1,6 +1,6 @@
 # DIKTO
 
-Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.3.0.
+Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.3.3.
 
 ## Stack technique
 
@@ -189,5 +189,5 @@ Stockage : `%APPDATA%/dikto/models/` (Win) / `~/.config/dikto/models/` (Linux)
 ## GitHub
 
 - Repo : https://github.com/david-digitis/dikto
-- Release v0.3.0 : .exe portable + installeur NSIS + AppImage Linux
+- Release v0.3.3 : .exe portable + installeur NSIS + AppImage Linux
 - Licence MIT
