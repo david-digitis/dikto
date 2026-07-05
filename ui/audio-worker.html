@@ -16,6 +16,7 @@ let audioChunks = [];
 let isCapturing = false;
 let currentDeviceId = null;
 let releaseTimer = null;
+let captureSampleRate = null;  // captured at record start — never guess it at stop
 
 const TARGET_SAMPLE_RATE = 16000;
 // Keep the mic stream alive between dictations to avoid getUserMedia cold-start
@@ -92,7 +93,11 @@ async function acquireMic(deviceId) {
     deviceId: settings.deviceId?.substring(0, 16),
   }));
 
-  audioContext = new AudioContext();
+  // Pin the context to 16kHz so Chromium resamples the mic natively (high quality).
+  // Relying on the hardware default rate caused a 2x sample-count bug on some cards
+  // (Xonar reports 96kHz), producing half-speed audio and garbage transcriptions.
+  audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+  console.log('[AudioWorker] AudioContext rate:', audioContext.sampleRate, 'Hz (requested', TARGET_SAMPLE_RATE + ')');
   sourceNode = audioContext.createMediaStreamSource(mediaStream);
   currentDeviceId = deviceId || null;
 }
@@ -169,7 +174,8 @@ window.audioWorker.onStartRecording(async (event, options) => {
     processorNode.connect(audioContext.destination);
 
     isCapturing = true;
-    console.log('[AudioWorker] Recording started at', audioContext.sampleRate, 'Hz');
+    captureSampleRate = audioContext.sampleRate;
+    console.log('[AudioWorker] Recording started at', captureSampleRate, 'Hz');
 
     const ampInterval = setInterval(() => {
       if (!isCapturing) { clearInterval(ampInterval); return; }
@@ -215,8 +221,9 @@ window.audioWorker.onStopRecording(() => {
     }
     audioChunks = [];
 
-    // Resample to 16kHz if needed
-    const nativeSampleRate = audioContext ? audioContext.sampleRate : 48000;
+    // Resample to 16kHz if needed. Use the rate captured at record start —
+    // never audioContext.sampleRate here (it can be null/stale at stop time).
+    const nativeSampleRate = captureSampleRate || TARGET_SAMPLE_RATE;
     let outputSamples;
 
     if (Math.abs(nativeSampleRate - TARGET_SAMPLE_RATE) < 100) {
