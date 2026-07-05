@@ -60,6 +60,16 @@ function getInstalledModels() {
     .map(([id, info]) => ({ id, ...info, installed: true }));
 }
 
+// Parakeet is the primary engine (fast, short clips); Whisper is the long-clip
+// fallback. "Active" always reflects Parakeet when it is loaded.
+function recomputeActiveModel() {
+  if (recognizers['parakeet-tdt-v3-int8']) {
+    activeModelId = 'parakeet-tdt-v3-int8';
+  } else {
+    activeModelId = Object.keys(recognizers)[0] || null;
+  }
+}
+
 function loadModel(modelId) {
   if (recognizers[modelId]) return; // Already loaded
 
@@ -98,8 +108,19 @@ function loadModel(modelId) {
   }
 
   recognizers[modelId] = rec;
-  activeModelId = modelId;
+  recomputeActiveModel();
   console.log(`[STT] Model loaded: ${model.name}`);
+}
+
+// Free a model from memory (e.g. after deletion from disk) and refresh the
+// active engine. Without this, a deleted model stayed loaded and kept the
+// "ACTIVE" badge, and re-downloading it early-returned without reloading.
+function unloadModel(modelId) {
+  if (recognizers[modelId]) {
+    delete recognizers[modelId];
+    recomputeActiveModel();
+    console.log(`[STT] Model unloaded: ${MODEL_REGISTRY[modelId]?.name || modelId}`);
+  }
 }
 
 async function initSTT(modelsDir) {
@@ -119,9 +140,7 @@ async function initSTT(modelsDir) {
   }
 
   // Set Parakeet as default active (fastest), fallback to whatever is loaded
-  if (recognizers['parakeet-tdt-v3-int8']) {
-    activeModelId = 'parakeet-tdt-v3-int8';
-  }
+  recomputeActiveModel();
 
   if (Object.keys(recognizers).length === 0) {
     throw new Error('No STT model installed. Please download a model first.');
@@ -167,6 +186,7 @@ module.exports = {
   transcribe,
   getActiveModelName,
   loadModel,
+  unloadModel,
   isModelInstalled,
   getInstalledModels,
   MODEL_REGISTRY,

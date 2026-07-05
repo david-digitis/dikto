@@ -953,7 +953,9 @@ ipcMain.on('download-model', async (event, modelId) => {
 
 ipcMain.handle('delete-model', async (event, modelId) => {
   const { deleteModel } = require('./src/models');
-  deleteModel(modelId);
+  const { unloadModel } = require('./src/stt');
+  deleteModel(modelId);      // remove files from disk
+  unloadModel(modelId);      // free RAM + refresh active engine
   log(`[Models] Deleted: ${modelId}`);
 });
 
