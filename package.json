@@ -1,6 +1,6 @@
 {
   "name": "dikto",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Dictaphone push-to-talk + assistant IA desktop — cross-platform",
   "main": "main.js",
   "author": "Digitis <david@digitis.cloud>",
