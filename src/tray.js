@@ -10,6 +10,7 @@ let onMicSelected = null;
 let onApiKeySet = null;
 let onAutoCorrectionToggle = null;
 let onSwitchThresholdChange = null;
+let onMuteWhileRecordingToggle = null;
 let onLanguageChange = null;
 let onClipboardHistoryToggle = null;
 let onClipboardMaxEntries = null;
@@ -17,6 +18,7 @@ let onClipboardClear = null;
 let currentApiKey = '';
 let autoCorrectionEnabled = false;
 let switchThreshold = 10;
+let muteWhileRecordingEnabled = false;
 let nativeLanguage = 'French';
 let targetLanguage = 'English';
 let clipboardHistoryEnabled = false;
@@ -123,6 +125,7 @@ function initTray(app, callbacks) {
   onApiKeySet = callbacks.onApiKeySet;
   onAutoCorrectionToggle = callbacks.onAutoCorrectionToggle;
   onSwitchThresholdChange = callbacks.onSwitchThresholdChange;
+  onMuteWhileRecordingToggle = callbacks.onMuteWhileRecordingToggle;
   onLanguageChange = callbacks.onLanguageChange;
   onClipboardHistoryToggle = callbacks.onClipboardHistoryToggle;
   onClipboardMaxEntries = callbacks.onClipboardMaxEntries;
@@ -132,6 +135,7 @@ function initTray(app, callbacks) {
   currentApiKey = callbacks.currentApiKey || '';
   autoCorrectionEnabled = callbacks.autoCorrectionEnabled || false;
   switchThreshold = callbacks.switchThreshold || 10;
+  muteWhileRecordingEnabled = callbacks.muteWhileRecording || false;
   nativeLanguage = callbacks.nativeLanguage || 'French';
   targetLanguage = callbacks.targetLanguage || 'English';
   clipboardHistoryEnabled = callbacks.clipboardHistoryEnabled || false;
@@ -195,6 +199,16 @@ function buildMenu(micDevices) {
           if (onSwitchThresholdChange) onSwitchThresholdChange(val);
         }
       }))
+    },
+    {
+      label: 'Mute audio while recording',
+      type: 'checkbox',
+      checked: muteWhileRecordingEnabled,
+      click: (menuItem) => {
+        muteWhileRecordingEnabled = menuItem.checked;
+        log(`[Tray] Mute while recording: ${muteWhileRecordingEnabled ? 'ON' : 'OFF'}`);
+        if (onMuteWhileRecordingToggle) onMuteWhileRecordingToggle(muteWhileRecordingEnabled);
+      }
     },
     { type: 'separator' },
     // ─── Post-processing ───

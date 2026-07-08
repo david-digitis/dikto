@@ -18,6 +18,7 @@ const { pasteText, simulatePaste } = require('./src/paste');
 const { loadConfig, getConfig } = require('./src/config');
 const { playStart, playDone, playError } = require('./src/sounds');
 const clipHistory = require('./src/clipboard-history');
+const { muteForRecording, unmuteAfterRecording } = require('./src/audio-mute');
 
 // Linux: use evdev for hotkeys (uiohook doesn't work under Wayland)
 const isLinux = process.platform === 'linux';
@@ -75,6 +76,10 @@ app.whenReady().then(async () => {
       setConfigValue('switchThreshold', seconds);
       log(`[Dikto] Switch threshold: ${seconds}s`);
     },
+    onMuteWhileRecordingToggle: (enabled) => {
+      setConfigValue('muteWhileRecording', enabled);
+      log(`[Dikto] Mute while recording: ${enabled ? 'ON' : 'OFF'}`);
+    },
     onLanguageChange: (key, lang) => {
       setConfigValue(key, lang);
       log(`[Dikto] ${key}: ${lang}`);
@@ -95,6 +100,7 @@ app.whenReady().then(async () => {
     currentApiKey: config.geminiApiKey || '',
     autoCorrectionEnabled: config.autoCorrection?.enabled || false,
     switchThreshold: config.switchThreshold || 10,
+    muteWhileRecording: config.muteWhileRecording || false,
     nativeLanguage: config.nativeLanguage || 'French',
     targetLanguage: config.targetLanguage || 'English',
     clipboardHistoryEnabled: config.clipboardHistory?.enabled || false,
@@ -106,6 +112,9 @@ app.whenReady().then(async () => {
     initUpdater({
       onStatusChange: (status, version) => setUpdateStatus(status, version),
     });
+    // Verifie au demarrage (apres le boot) puis toutes les 6h — l'app vit dans le tray
+    setTimeout(() => checkForUpdates(), 20000);
+    setInterval(() => checkForUpdates(), 6 * 60 * 60 * 1000);
   }
 
   // IPC: Gemini key from dialog
@@ -350,12 +359,14 @@ function beginRecording() {
 
   try {
     startRecording();
+    if (getConfig().muteWhileRecording) muteForRecording();
     showBubble();
     playStart();
     log('[Dikto] Recording started');
   } catch (err) {
     logError('[Dikto] Recording start error:', err.message);
     playError();
+    unmuteAfterRecording();
     isRecording = false;
     setTrayState('idle');
   }
@@ -365,6 +376,7 @@ async function finishRecording() {
   if (!isRecording || isProcessing) return;
   isRecording = false;
   isProcessing = true;
+  unmuteAfterRecording(); // retablit le son des le relachement (avant la transcription)
 
   const duration = (Date.now() - recordingStartTime) / 1000;
   log(`[Dikto] Stopping recording (${duration.toFixed(1)}s)...`);

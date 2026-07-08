@@ -46,7 +46,8 @@
         "--no-sandbox"
       ],
       "files": [
-        "!paste.vbs"
+        "!paste.vbs",
+        "!mute.ps1"
       ]
     },
     "files": [
@@ -54,6 +55,7 @@
       "preload.js",
       "preload-audio.js",
       "paste.vbs",
+      "mute.ps1",
       "src/**/*",
       "ui/**/*",
       "assets/**/*",
