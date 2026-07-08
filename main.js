@@ -611,11 +611,23 @@ let clipboardWindow = null;
 let clipboardPasting = false;
 
 function getClipboardPosition() {
-  const display = getActiveDisplay();
-  const { x, y, width, height } = display.workArea;
+  const cursor = screen.getCursorScreenPoint();
+  const { x: dx, y: dy, width: dw, height: dh } = screen.getDisplayNearestPoint(cursor).workArea;
   const w = 500;
   const h = 520;
-  return { width: w, height: h, x: x + Math.round(width / 2 - w / 2), y: y + Math.round(height / 2 - h / 2) };
+  const GAP = 12; // petit decalage pour ne pas coller la fenetre pile sous le curseur
+
+  // S'ouvre en bas-droite du curseur (comme un menu contextuel)
+  let x = cursor.x + GAP;
+  let y = cursor.y + GAP;
+  // Bascule a gauche / au-dessus si ca deborde de l'ecran
+  if (x + w > dx + dw) x = cursor.x - w - GAP;
+  if (y + h > dy + dh) y = cursor.y - h - GAP;
+  // Clamp de securite : toujours entierement dans la work area
+  x = Math.max(dx, Math.min(x, dx + dw - w));
+  y = Math.max(dy, Math.min(y, dy + dh - h));
+
+  return { width: w, height: h, x: Math.round(x), y: Math.round(y) };
 }
 
 function toggleClipboardWindow() {
