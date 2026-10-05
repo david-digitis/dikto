@@ -460,6 +460,15 @@ function waitForActionOrTimeout(ms) {
 
 function getActiveDisplay() {
   const cursor = screen.getCursorScreenPoint();
+// Windows + ecrans a echelles differentes (ex. 125% / 100%) : un seul setBounds
+// vers un autre ecran applique la taille avec l'ancien facteur d'echelle
+// (500x520 devient 400x416 ou 625x651), la fenetre deborde et peut glisser sur
+// l'ecran voisin. Le second appel, la fenetre deja sur le bon ecran, corrige.
+function placeWindow(win, bounds) {
+  win.setBounds(bounds);
+  win.setBounds(bounds);
+}
+
   return screen.getDisplayNearestPoint(cursor);
 }
 
@@ -499,7 +508,7 @@ function showBubble() {
   if (bubbleWindow && !bubbleWindow.isDestroyed()) {
     // Reposition to current screen
     const pos = getBubblePosition();
-    bubbleWindow.setBounds(pos);
+    placeWindow(bubbleWindow, pos);
     bubbleWindow.webContents.send('recording-start');
     bubbleWindow.showInactive();
     return;
@@ -565,7 +574,7 @@ function handleDoubleCtrlC() {
 function showOverlay(text) {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     const pos = getOverlayPosition();
-    overlayWindow.setBounds(pos);
+    placeWindow(overlayWindow, pos);
     overlayWindow.webContents.send('overlay-text', text);
     overlayWindow.show();
     overlayWindow.focus();
@@ -618,7 +627,7 @@ ipcMain.on('resize-overlay', (event, width, height) => {
   const { x, y, width: dw, height: dh } = display.workArea;
   const w = Math.min(width, dw - 40);
   const h = Math.min(height, dh - 40);
-  overlayWindow.setBounds({
+  placeWindow(overlayWindow, {
     width: w,
     height: h,
     x: x + Math.round(dw / 2 - w / 2),
@@ -631,7 +640,7 @@ ipcMain.on('resize-overlay', (event, width, height) => {
 ipcMain.handle('resize-bubble', (event, width, height) => {
   if (!bubbleWindow || bubbleWindow.isDestroyed()) return 0;
   const pos = getBubblePosition(width, height);
-  bubbleWindow.setBounds(pos);
+  placeWindow(bubbleWindow, pos);
   return pos.width;
 });
 
@@ -671,7 +680,7 @@ function toggleClipboardWindow() {
 function showClipboardWindow() {
   if (clipboardWindow && !clipboardWindow.isDestroyed()) {
     const pos = getClipboardPosition();
-    clipboardWindow.setBounds(pos);
+    placeWindow(clipboardWindow, pos);
     clipboardWindow.webContents.send('clipboard-show');
     clipboardWindow.show();
     clipboardWindow.focus();
