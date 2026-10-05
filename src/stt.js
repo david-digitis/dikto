@@ -1,10 +1,15 @@
 const sherpa = require('sherpa-onnx-node');
 const path = require('path');
 const fs = require('fs');
+const { langCode, looksLikeEnglishDrift } = require('./language-guard');
 
 let recognizers = {};  // { modelId: recognizer }
 let modelsPath = '';
 let activeModelId = null;
+let guardLang = 'fr';  // language the Canary guard is forced to
+
+const PRIMARY_ID = 'parakeet-tdt-v3-int8';
+const GUARD_ID = 'canary-180m-flash-int8';
 
 // Model registry — metadata for available models
 const MODEL_REGISTRY = {
@@ -25,21 +30,21 @@ const MODEL_REGISTRY = {
     precision: 75,
     speed: 98,
   },
-  'whisper-turbo': {
-    name: 'Whisper Turbo',
-    folder: 'sherpa-onnx-whisper-turbo',
-    type: 'whisper',
+  'canary-180m-flash-int8': {
+    name: 'Canary 180M Flash',
+    folder: 'sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8',
+    type: 'canary',
     files: {
-      encoder: 'turbo-encoder.int8.onnx',
-      decoder: 'turbo-decoder.int8.onnx',
-      tokens: 'turbo-tokens.txt',
+      encoder: 'encoder.int8.onnx',
+      decoder: 'decoder.int8.onnx',
+      tokens: 'tokens.txt',
     },
-    downloadUrl: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2',
-    size: 563790207,
-    description: 'Accurate on long segments — multilingual',
-    languages: ['multilingual'],
-    precision: 90,
-    speed: 45,
+    downloadUrl: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-canary-180m-flash-en-es-de-fr-int8.tar.bz2',
+    size: 153692328,
+    description: 'Language guard — re-transcribes in your native language when Parakeet drifts to English',
+    languages: ['fr', 'en', 'de', 'es'],
+    precision: 65,
+    speed: 90,
   },
 };
 
@@ -60,11 +65,11 @@ function getInstalledModels() {
     .map(([id, info]) => ({ id, ...info, installed: true }));
 }
 
-// Parakeet is the primary engine (fast, short clips); Whisper is the long-clip
-// fallback. "Active" always reflects Parakeet when it is loaded.
+// Parakeet is the primary engine; Canary only re-decodes clips where Parakeet
+// drifted to English. "Active" always reflects Parakeet when it is loaded.
 function recomputeActiveModel() {
-  if (recognizers['parakeet-tdt-v3-int8']) {
-    activeModelId = 'parakeet-tdt-v3-int8';
+  if (recognizers[PRIMARY_ID]) {
+    activeModelId = PRIMARY_ID;
   } else {
     activeModelId = Object.keys(recognizers)[0] || null;
   }
@@ -92,13 +97,15 @@ function loadModel(modelId) {
         provider: 'cpu',
       },
     });
-  } else if (model.type === 'whisper') {
+  } else if (model.type === 'canary') {
     rec = new sherpa.OfflineRecognizer({
       modelConfig: {
-        whisper: {
+        canary: {
           encoder: path.join(modelDir, model.files.encoder),
           decoder: path.join(modelDir, model.files.decoder),
-          language: 'fr',
+          srcLang: guardLang,
+          tgtLang: guardLang,
+          usePnc: 1,
         },
         tokens: path.join(modelDir, model.files.tokens),
         numThreads: 4,
@@ -123,17 +130,28 @@ function unloadModel(modelId) {
   }
 }
 
-async function initSTT(modelsDir) {
+// Point the Canary guard at the user's native language (rebuilds it if loaded)
+function setGuardLanguage(languageName) {
+  const code = langCode(languageName) || 'fr';
+  if (code === guardLang) return;
+  guardLang = code;
+  if (recognizers[GUARD_ID]) {
+    delete recognizers[GUARD_ID];
+    loadModel(GUARD_ID);
+  }
+}
+
+async function initSTT(modelsDir, nativeLanguage) {
   modelsPath = modelsDir;
+  guardLang = langCode(nativeLanguage) || 'fr';
 
   // Ensure models directory exists
   if (!fs.existsSync(modelsPath)) {
     fs.mkdirSync(modelsPath, { recursive: true });
   }
 
-  // Load all installed models (dual engine)
-  const loadOrder = ['parakeet-tdt-v3-int8', 'whisper-turbo'];
-  for (const modelId of loadOrder) {
+  // Load all installed models (primary + language guard)
+  for (const modelId of [PRIMARY_ID, GUARD_ID]) {
     if (isModelInstalled(modelId)) {
       loadModel(modelId);
     }
@@ -147,33 +165,34 @@ async function initSTT(modelsDir) {
   }
 
   const loaded = Object.keys(recognizers).map(id => MODEL_REGISTRY[id].name);
-  console.log(`[STT] Dual engine: ${loaded.join(' + ') || 'none'}`);
+  console.log(`[STT] Engines: ${loaded.join(' + ') || 'none'}`);
 }
 
-async function transcribe(audioSamples, durationSecs, switchThreshold = 10) {
-  if (Object.keys(recognizers).length === 0) {
-    throw new Error('STT not initialized — no model loaded');
-  }
-
-  // Dual engine: pick model based on duration
-  let modelId = activeModelId;
-  if (durationSecs >= switchThreshold && recognizers['whisper-turbo']) {
-    modelId = 'whisper-turbo';
-  } else if (recognizers['parakeet-tdt-v3-int8']) {
-    modelId = 'parakeet-tdt-v3-int8';
-  }
-
-  if (modelId !== activeModelId) {
-    console.log(`[STT] Switching to ${MODEL_REGISTRY[modelId].name} (${durationSecs.toFixed(1)}s >= ${switchThreshold}s threshold)`);
-  }
-
+function decode(modelId, audioSamples) {
   const recognizer = recognizers[modelId];
   const stream = recognizer.createStream();
   stream.acceptWaveform({ sampleRate: 16000, samples: audioSamples });
   recognizer.decode(stream);
-
   const result = recognizer.getResult(stream);
   return result.text ? result.text.trim() : '';
+}
+
+// Returns { text, guarded, original } — guarded=true when Canary replaced a
+// Parakeet result that had drifted to English.
+async function transcribe(audioSamples) {
+  if (!activeModelId) {
+    throw new Error('STT not initialized — no model loaded');
+  }
+
+  const text = decode(activeModelId, audioSamples);
+  const guardUsable = activeModelId !== GUARD_ID && recognizers[GUARD_ID] && guardLang !== 'en';
+  if (!guardUsable || !looksLikeEnglishDrift(text, guardLang)) {
+    return { text, guarded: false };
+  }
+
+  const retry = decode(GUARD_ID, audioSamples);
+  if (!retry) return { text, guarded: false };
+  return { text: retry, guarded: true, original: text };
 }
 
 function getActiveModelName() {
@@ -187,6 +206,7 @@ module.exports = {
   getActiveModelName,
   loadModel,
   unloadModel,
+  setGuardLanguage,
   isModelInstalled,
   getInstalledModels,
   MODEL_REGISTRY,

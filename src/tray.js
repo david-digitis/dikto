@@ -9,7 +9,6 @@ let appRef = null;
 let onMicSelected = null;
 let onApiKeySet = null;
 let onAutoCorrectionToggle = null;
-let onSwitchThresholdChange = null;
 let onMuteWhileRecordingToggle = null;
 let onLanguageChange = null;
 let onClipboardHistoryToggle = null;
@@ -17,7 +16,6 @@ let onClipboardMaxEntries = null;
 let onClipboardClear = null;
 let currentApiKey = '';
 let autoCorrectionEnabled = false;
-let switchThreshold = 10;
 let muteWhileRecordingEnabled = false;
 let nativeLanguage = 'French';
 let targetLanguage = 'English';
@@ -124,7 +122,6 @@ function initTray(app, callbacks) {
   onMicSelected = callbacks.onMicSelected;
   onApiKeySet = callbacks.onApiKeySet;
   onAutoCorrectionToggle = callbacks.onAutoCorrectionToggle;
-  onSwitchThresholdChange = callbacks.onSwitchThresholdChange;
   onMuteWhileRecordingToggle = callbacks.onMuteWhileRecordingToggle;
   onLanguageChange = callbacks.onLanguageChange;
   onClipboardHistoryToggle = callbacks.onClipboardHistoryToggle;
@@ -134,7 +131,6 @@ function initTray(app, callbacks) {
   onQuitAndInstall = callbacks.onQuitAndInstall;
   currentApiKey = callbacks.currentApiKey || '';
   autoCorrectionEnabled = callbacks.autoCorrectionEnabled || false;
-  switchThreshold = callbacks.switchThreshold || 10;
   muteWhileRecordingEnabled = callbacks.muteWhileRecording || false;
   nativeLanguage = callbacks.nativeLanguage || 'French';
   targetLanguage = callbacks.targetLanguage || 'English';
@@ -186,19 +182,6 @@ function buildMenu(micDevices) {
         const { ipcMain } = require('electron');
         ipcMain.emit('open-model-manager');
       }
-    },
-    {
-      label: `Whisper switch: ${switchThreshold}s`,
-      submenu: [5, 8, 10, 15, 20, 30].map(val => ({
-        label: `${val}s`,
-        type: 'radio',
-        checked: val === switchThreshold,
-        click: () => {
-          switchThreshold = val;
-          log(`[Tray] Switch threshold: ${val}s`);
-          if (onSwitchThresholdChange) onSwitchThresholdChange(val);
-        }
-      }))
     },
     {
       label: 'Mute audio while recording',

@@ -6,7 +6,6 @@ let config = {
   geminiApiKey: '',
   modelsPath: '',
   activeModel: 'parakeet-tdt-v3-int8',
-  switchThreshold: 10, // seconds — switch from Parakeet to Whisper
   muteWhileRecording: false, // couper le son systeme pendant la dictee
   nativeLanguage: 'French',
   targetLanguage: 'English',

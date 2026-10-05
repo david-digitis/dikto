@@ -12,7 +12,7 @@ if (process.platform === 'linux') {
 const { log, error: logError } = require('./src/logger');
 const { initTray, setTrayState, updateMicList, setUpdateStatus } = require('./src/tray');
 const { initUpdater, checkForUpdates, quitAndInstall } = require('./src/updater');
-const { initSTT, transcribe, getActiveModelName } = require('./src/stt');
+const { initSTT, transcribe, getActiveModelName, setGuardLanguage } = require('./src/stt');
 const { startRecording, stopRecording, setAudioDevice, listAudioDevices } = require('./src/recorder');
 const { pasteText, simulatePaste } = require('./src/paste');
 const { loadConfig, getConfig } = require('./src/config');
@@ -49,8 +49,8 @@ app.whenReady().then(async () => {
 
   const config = getConfig();
   try {
-    await initSTT(config.modelsPath);
-    log(`[Dikto] STT engine initialized (threshold: ${config.switchThreshold}s)`);
+    await initSTT(config.modelsPath, config.nativeLanguage);
+    log('[Dikto] STT engine initialized');
   } catch (err) {
     logError('[Dikto] STT init failed:', err.message);
   }
@@ -73,16 +73,13 @@ app.whenReady().then(async () => {
       setConfigValue('autoCorrection.enabled', enabled);
       log(`[Dikto] Auto-correction: ${enabled ? 'ON' : 'OFF'}`);
     },
-    onSwitchThresholdChange: (seconds) => {
-      setConfigValue('switchThreshold', seconds);
-      log(`[Dikto] Switch threshold: ${seconds}s`);
-    },
     onMuteWhileRecordingToggle: (enabled) => {
       setConfigValue('muteWhileRecording', enabled);
       log(`[Dikto] Mute while recording: ${enabled ? 'ON' : 'OFF'}`);
     },
     onLanguageChange: (key, lang) => {
       setConfigValue(key, lang);
+      if (key === 'nativeLanguage') setGuardLanguage(lang);
       log(`[Dikto] ${key}: ${lang}`);
     },
     onClipboardHistoryToggle: (enabled) => {
@@ -100,7 +97,6 @@ app.whenReady().then(async () => {
     onQuitAndInstall: () => quitAndInstall(),
     currentApiKey: config.geminiApiKey || '',
     autoCorrectionEnabled: config.autoCorrection?.enabled || false,
-    switchThreshold: config.switchThreshold || 10,
     muteWhileRecording: config.muteWhileRecording || false,
     nativeLanguage: config.nativeLanguage || 'French',
     targetLanguage: config.targetLanguage || 'English',
@@ -411,8 +407,9 @@ async function finishRecording() {
 
     log('[Dikto] Transcribing...');
     const t0 = Date.now();
-    const text = await transcribe(samples, duration, getConfig().switchThreshold);
+    const { text, guarded, original } = await transcribe(samples);
     log(`[Dikto] STT took ${Date.now() - t0}ms`);
+    if (guarded) log(`[Dikto] Language guard: English drift replaced (was: "${original.substring(0, 120)}")`);
 
     if (!text || text.trim().length === 0) {
       log('[Dikto] Empty transcription, skipping');
@@ -460,6 +457,9 @@ function waitForActionOrTimeout(ms) {
 
 function getActiveDisplay() {
   const cursor = screen.getCursorScreenPoint();
+  return screen.getDisplayNearestPoint(cursor);
+}
+
 // Windows + ecrans a echelles differentes (ex. 125% / 100%) : un seul setBounds
 // vers un autre ecran applique la taille avec l'ancien facteur d'echelle
 // (500x520 devient 400x416 ou 625x651), la fenetre deborde et peut glisser sur
@@ -467,9 +467,6 @@ function getActiveDisplay() {
 function placeWindow(win, bounds) {
   win.setBounds(bounds);
   win.setBounds(bounds);
-}
-
-  return screen.getDisplayNearestPoint(cursor);
 }
 
 // Bubble : largeur/hauteur dynamiques (le nombre de boutons d'action varie),
