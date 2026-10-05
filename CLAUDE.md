@@ -6,7 +6,7 @@ Desktop dictaphone with local STT + AI-powered text processing (translation, cor
 
 - **Framework** : Electron 33 (main + renderer processes)
 - **Langage** : JavaScript/Node.js
-- **STT** : sherpa-onnx-node v1.12.32 — dual engine: Parakeet TDT v3 (~50ms) + Whisper Turbo (~2s)
+- **STT** : sherpa-onnx-node v1.13.8 — Parakeet TDT v3 (~200ms) + garde-langue Canary 180M Flash (force la langue native)
 - **IA cloud** : Gemini 2.5 Flash Lite (API REST, header x-goog-api-key)
 - **Audio** : Web Audio API via hidden BrowserWindow (MediaDevices + ScriptProcessor)
 - **Clipboard** : electron clipboard module
@@ -26,11 +26,12 @@ DIKTO/
 ├── afterPack.js            # electron-builder hook: wrapper script Linux (--no-sandbox)
 ├── package.json
 ├── src/
-│   ├── stt.js              # Dual STT engine (Parakeet + Whisper, auto-switch par duree)
+│   ├── stt.js              # STT : Parakeet + garde-langue Canary (re-transcrit si derive anglaise)
+│   ├── language-guard.js   # Detection derive anglaise (phrase mixte FR/EN)
 │   ├── recorder.js         # Capture audio (hidden window + MediaDevices)
 │   ├── gemini.js           # Client Gemini — getActions() lit depuis config, translate built-in
 │   ├── config.js           # Config store (safeStorage, customActions, language pair)
-│   ├── tray.js             # Tray icon + menu complet (micro, modeles, modes, langues, seuil)
+│   ├── tray.js             # Tray icon + menu complet (micro, modeles, modes, langues)
 │   ├── paste.js            # Clipboard + auto-paste VBScript/dotool
 │   ├── models.js           # Download/gestion modeles STT
 │   ├── sounds.js           # Beeps feedback (start, done, error)
@@ -54,7 +55,8 @@ DIKTO/
 
 ### Dictaphone push-to-talk
 - Hold Ctrl+Space -> enregistre, release -> transcrit -> colle automatiquement
-- Dual engine : Parakeet TDT v3 (< seuil) / Whisper Turbo (>= seuil, configurable)
+- Parakeet TDT v3 transcrit tout (detecte la langue seul, ne peut pas etre force)
+- Garde-langue : si le resultat melange FR et beaucoup de mots anglais, re-transcription par Canary force en langue native (~300ms de plus, seulement dans ce cas). Une phrase 100% anglaise n'est pas touchee
 - Auto-paste via VBScript (Windows) / dotool (Linux/Wayland)
 - Tray icon 3 etats (idle gris, recording rouge, busy orange)
 - Sons feedback (beep start, double beep done, buzz error)
@@ -91,7 +93,7 @@ DIKTO/
 - Ctrl+B toggle la fenetre (via uiohook sur Windows, evdev sur Linux)
 
 ### Configuration (tray menu)
-- **Transcription** : Microphone, STT Models..., Whisper switch threshold
+- **Transcription** : Microphone, STT Models...
 - **Post-processing** : Action modes..., Gemini auto-correction, Native/Target language
 - **Clipboard** : Clipboard history (toggle), Max entries, Clear history
 - Cle API Gemini (dialog, stockee chiffree)
@@ -182,7 +184,7 @@ sudo systemctl enable --now dotool.service
 | Modele | ID config | Taille | URL |
 |--------|-----------|--------|-----|
 | Parakeet TDT v3 int8 | parakeet-tdt-v3-int8 | ~464 MB | sherpa-onnx releases |
-| Whisper Turbo int8 | whisper-turbo | ~538 MB | sherpa-onnx releases |
+| Canary 180M Flash int8 (garde-langue) | canary-180m-flash-int8 | ~154 MB | sherpa-onnx releases |
 
 Stockage : `%APPDATA%/dikto/models/` (Win) / `~/.config/dikto/models/` (Linux)
 

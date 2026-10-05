@@ -68,7 +68,7 @@ Select text anywhere, double-tap `Ctrl+C`. An overlay appears with action button
 | | What it does |
 |---|---|
 | **Push-to-talk** | Hold `Ctrl+Space`, speak, release. Text at cursor. Any app. ~50ms. |
-| **100% offline STT** | Dual engine: Parakeet TDT v3 (speed) + Whisper Turbo (accuracy). Your audio never leaves your machine. |
+| **100% offline STT** | Parakeet TDT v3 (fast and accurate) + optional Canary 180M language guard that re-transcribes clips where Parakeet drifted to English. Your audio never leaves your machine. |
 | **Smart translate** | Built-in DeepL-like translation. Auto-detects language direction. 7 languages. |
 | **AI overlay** | Select text + double `Ctrl+C` = translate, correct, rewrite. System-wide. |
 | **Mail mode** | Dictate freely, get a polished email with proper greeting and signature. |
@@ -175,7 +175,7 @@ Install the GNOME extension [AppIndicator and KStatusNotifierItem Support](https
 | Component | Technology |
 |-----------|-----------|
 | Framework | Electron 33 |
-| Local STT | [sherpa-onnx-node](https://github.com/k2-fsa/sherpa-onnx) v1.12 — Parakeet TDT v3 + Whisper Turbo |
+| Local STT | [sherpa-onnx-node](https://github.com/k2-fsa/sherpa-onnx) v1.13 — Parakeet TDT v3 + Canary 180M Flash (language guard) |
 | AI | [Gemini 2.5 Flash Lite](https://ai.google.dev/) (optional, for translation/rewriting) |
 | Hotkeys | uiohook-napi (Windows) / evdev (Linux/Wayland) |
 | Auto-paste | VBScript (Windows) / dotool (Linux) |
@@ -217,7 +217,6 @@ Check out the [open issues](https://github.com/david-digitis/dikto/issues) for i
 
 - **[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)** by k2-fsa — the blazing-fast local STT engine that makes offline dictation possible
 - **[NVIDIA Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2)** — the ~50ms model that makes push-to-talk feel instant
-- **[OpenAI Whisper](https://github.com/openai/whisper)** — accuracy benchmark for longer dictations
 - **[Google Gemini](https://ai.google.dev/)** — AI processing for translation, correction, and custom actions
 - **[Electron](https://www.electronjs.org/)** — cross-platform desktop framework
 - **[uiohook-napi](https://github.com/SergioRt1/uiohook-napi)** — native system-wide hotkeys
