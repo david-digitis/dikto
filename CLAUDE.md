@@ -1,6 +1,6 @@
 # DIKTO
 
-Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.3.8.
+Desktop dictaphone with local STT + AI-powered text processing (translation, correction, email writing). Cross-platform (Windows 11 + Linux Fedora/Wayland). v0.3.9.
 
 ## Stack technique
 
