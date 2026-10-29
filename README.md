@@ -68,7 +68,8 @@ Select text anywhere, double-tap `Ctrl+C`. An overlay appears with action button
 | | What it does |
 |---|---|
 | **Push-to-talk** | Hold `Ctrl+Space`, speak, release. Text at cursor. Any app. ~50ms. |
-| **100% offline STT** | Parakeet TDT v3 (fast and accurate) + optional Canary 180M language guard that re-transcribes clips where Parakeet drifted to English. Your audio never leaves your machine. |
+| **100% offline STT** | Parakeet TDT v3 (fast and accurate, 25 European languages). Your audio never leaves your machine. |
+| **Cloud STT (optional)** | Switch to ElevenLabs Scribe v2 from the tray for maximum accuracy, with your language forced. Falls back to Parakeet if offline. |
 | **Smart translate** | Built-in DeepL-like translation. Auto-detects language direction. 7 languages. |
 | **AI overlay** | Select text + double `Ctrl+C` = translate, correct, rewrite. System-wide. |
 | **Mail mode** | Dictate freely, get a polished email with proper greeting and signature. |
@@ -175,7 +176,8 @@ Install the GNOME extension [AppIndicator and KStatusNotifierItem Support](https
 | Component | Technology |
 |-----------|-----------|
 | Framework | Electron 33 |
-| Local STT | [sherpa-onnx-node](https://github.com/k2-fsa/sherpa-onnx) v1.13 — Parakeet TDT v3 + Canary 180M Flash (language guard) |
+| Local STT | [sherpa-onnx-node](https://github.com/k2-fsa/sherpa-onnx) v1.13 — Parakeet TDT v3 |
+| Cloud STT | [ElevenLabs Scribe v2](https://elevenlabs.io/speech-to-text) (optional) |
 | AI | [Gemini 2.5 Flash Lite](https://ai.google.dev/) (optional, for translation/rewriting) |
 | Hotkeys | uiohook-napi (Windows) / evdev (Linux/Wayland) |
 | Auto-paste | VBScript (Windows) / dotool (Linux) |

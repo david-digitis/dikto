@@ -6,7 +6,8 @@ Desktop dictaphone with local STT + AI-powered text processing (translation, cor
 
 - **Framework** : Electron 33 (main + renderer processes)
 - **Langage** : JavaScript/Node.js
-- **STT** : sherpa-onnx-node v1.13.8 — Parakeet TDT v3 (~200ms) + garde-langue Canary 180M Flash (force la langue native)
+- **STT local** : sherpa-onnx-node v1.13.8 — Parakeet TDT v3 (~200ms), clip encadre de silence (pre-roll 300ms, post-roll 150ms, padding)
+- **STT cloud (optionnel)** : ElevenLabs Scribe v2 (REST multipart, PCM 16 bits brut, langue native forcee), repli automatique sur Parakeet
 - **IA cloud** : Gemini 2.5 Flash Lite (API REST, header x-goog-api-key)
 - **Audio** : Web Audio API via hidden BrowserWindow (MediaDevices + ScriptProcessor)
 - **Clipboard** : electron clipboard module
@@ -26,8 +27,8 @@ DIKTO/
 ├── afterPack.js            # electron-builder hook: wrapper script Linux (--no-sandbox)
 ├── package.json
 ├── src/
-│   ├── stt.js              # STT : Parakeet + garde-langue Canary (re-transcrit si derive anglaise)
-│   ├── language-guard.js   # Detection derive anglaise (phrase mixte FR/EN)
+│   ├── stt.js              # STT local : Parakeet (padding silence, registre de modeles)
+│   ├── stt-elevenlabs.js   # STT cloud : ElevenLabs Scribe v2 (langue forcee)
 │   ├── recorder.js         # Capture audio (hidden window + MediaDevices)
 │   ├── gemini.js           # Client Gemini — getActions() lit depuis config, translate built-in
 │   ├── config.js           # Config store (safeStorage, customActions, language pair)
@@ -56,7 +57,9 @@ DIKTO/
 ### Dictaphone push-to-talk
 - Hold Ctrl+Space -> enregistre, release -> transcrit -> colle automatiquement
 - Parakeet TDT v3 transcrit tout (detecte la langue seul, ne peut pas etre force)
-- Garde-langue : si le resultat melange FR et beaucoup de mots anglais, re-transcription par Canary force en langue native (~300ms de plus, seulement dans ce cas). Une phrase 100% anglaise n'est pas touchee
+- Capture : pre-roll 300ms (ring buffer tant que le micro est en keep-alive), post-roll 150ms apres relachement, buffers de 64ms. Le clip est encadre de silence (0.15s / 0.45s) avant decodage : les modeles NeMo emettent mieux le premier et le dernier mot
+- Moteur au choix (tray > Engine) : Parakeet local ou ElevenLabs Scribe v2 cloud (cle API chiffree, langue native forcee donc aucune derive anglaise). Si le cloud echoue (hors ligne, quota), repli silencieux sur Parakeet. Le log note `STT (elevenlabs|parakeet) took Xms` pour comparer
+- Le garde-langue Canary (v0.3.x) a ete retire : il ne traitait que les phrases mixtes FR/EN et ne s'est jamais declenche en usage reel. Le dossier modele est supprime au demarrage
 - Auto-paste via VBScript (Windows) / dotool (Linux/Wayland)
 - Tray icon 3 etats (idle gris, recording rouge, busy orange)
 - Sons feedback (beep start, double beep done, buzz error)
@@ -113,7 +116,7 @@ DIKTO/
 
 ## Regles de dev
 
-- **Secrets** : Cle API Gemini via electron safeStorage, JAMAIS en clair
+- **Secrets** : Cles API (Gemini, ElevenLabs) via electron safeStorage, JAMAIS en clair — liste `SECRET_KEYS` dans config.js
 - **API Gemini** : Header `x-goog-api-key` (pas query string `?key=`)
 - **Auto-paste** : VBScript sur Windows (cscript), dotool sur Linux/Wayland
 - **Push-to-talk** : uiohook-napi sur Windows, evdev sur Linux (uiohook ne fonctionne pas sous Wayland)
@@ -184,7 +187,6 @@ sudo systemctl enable --now dotool.service
 | Modele | ID config | Taille | URL |
 |--------|-----------|--------|-----|
 | Parakeet TDT v3 int8 | parakeet-tdt-v3-int8 | ~464 MB | sherpa-onnx releases |
-| Canary 180M Flash int8 (garde-langue) | canary-180m-flash-int8 | ~154 MB | sherpa-onnx releases |
 
 Stockage : `%APPDATA%/dikto/models/` (Win) / `~/.config/dikto/models/` (Linux)
 
