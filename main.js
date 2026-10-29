@@ -706,6 +706,9 @@ function getClipboardPosition() {
 }
 
 function toggleClipboardWindow() {
+  // Ctrl+B n'est pas intercepte (uiohook/evdev ecoutent sans bloquer) : si
+  // l'historique est desactive, on ne doit rien ouvrir.
+  if (!getConfig().clipboardHistory?.enabled) return;
   if (clipboardWindow && !clipboardWindow.isDestroyed() && clipboardWindow.isVisible()) {
     clipboardWindow.hide();
     return;
