@@ -262,6 +262,7 @@ ipcMain.on('onboarding-done', () => {
 
 let lastCtrlCTime = 0;
 const DOUBLE_CC_DELAY = 400; // ms between two Ctrl+C presses
+const POST_ROLL_MS = 150;    // audio garde apres le relachement de Ctrl+Space
 
 function registerPushToTalk() {
   if (isLinux) {
@@ -384,6 +385,9 @@ async function finishRecording() {
   hideBubble();
 
   try {
+    // Post-roll : on laisse le micro ouvert un instant apres le relachement,
+    // sinon la fin du dernier mot est tronquee.
+    await new Promise(r => setTimeout(r, POST_ROLL_MS));
     log('[Dikto] Stopping audio...');
     const audioBuffer = await stopRecording();
 

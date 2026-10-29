@@ -17,8 +17,19 @@ let isCapturing = false;
 let currentDeviceId = null;
 let releaseTimer = null;
 let captureSampleRate = null;  // captured at record start — never guess it at stop
+let maxAmplitude = 0;
 
 const TARGET_SAMPLE_RATE = 16000;
+// Petits buffers : au stop, l'audio encore dans le buffer non delivre est perdu.
+// 1024 echantillons = 64 ms de perte max (contre 256 ms avec 4096).
+const BUFFER_SIZE = 1024;
+// Pre-roll : tant que le micro est garde ouvert (keep-alive), on conserve les
+// dernieres PRE_ROLL_MS d'audio pour recuperer la premiere syllabe quand
+// l'utilisateur parle en appuyant sur Ctrl+Space.
+const PRE_ROLL_MS = 300;
+const PRE_ROLL_SAMPLES = Math.round(TARGET_SAMPLE_RATE * PRE_ROLL_MS / 1000);
+let preRoll = [];        // chunks recents (Float32Array)
+let preRollLength = 0;   // total d'echantillons dans preRoll
 // Keep the mic stream alive between dictations to avoid getUserMedia cold-start
 // (Intel Smart Sound DSP can take ~900ms to initialize on each acquisition).
 const KEEP_ALIVE_MS = 60000;
@@ -100,9 +111,59 @@ async function acquireMic(deviceId) {
   console.log('[AudioWorker] AudioContext rate:', audioContext.sampleRate, 'Hz (requested', TARGET_SAMPLE_RATE + ')');
   sourceNode = audioContext.createMediaStreamSource(mediaStream);
   currentDeviceId = deviceId || null;
+  attachProcessor();
+}
+
+// Un seul processeur, branche en permanence tant que le micro est ouvert :
+// il alimente le pre-roll au repos et audioChunks pendant la capture.
+function attachProcessor() {
+  processorNode = audioContext.createScriptProcessor(BUFFER_SIZE, 1, 1);
+  processorNode.onaudioprocess = (e) => {
+    const chunk = new Float32Array(e.inputBuffer.getChannelData(0));
+    if (isCapturing) {
+      for (let i = 0; i < chunk.length; i++) {
+        const abs = Math.abs(chunk[i]);
+        if (abs > maxAmplitude) maxAmplitude = abs;
+      }
+      audioChunks.push(chunk);
+    } else {
+      preRoll.push(chunk);
+      preRollLength += chunk.length;
+      while (preRollLength - preRoll[0].length >= PRE_ROLL_SAMPLES) {
+        preRollLength -= preRoll.shift().length;
+      }
+    }
+  };
+  sourceNode.connect(processorNode);
+  processorNode.connect(audioContext.destination);
+}
+
+function detachProcessor() {
+  if (processorNode) {
+    processorNode.disconnect();
+    processorNode = null;
+  }
+  preRoll = [];
+  preRollLength = 0;
+}
+
+// Les PRE_ROLL_MS dernieres ms captees avant le keydown, puis on vide.
+function takePreRoll() {
+  let chunks = preRoll;
+  preRoll = [];
+  preRollLength = 0;
+  let total = chunks.reduce((s, c) => s + c.length, 0);
+  while (chunks.length && total - chunks[0].length >= PRE_ROLL_SAMPLES) {
+    total -= chunks.shift().length;
+  }
+  if (chunks.length && total > PRE_ROLL_SAMPLES) {
+    chunks[0] = chunks[0].subarray(total - PRE_ROLL_SAMPLES);
+  }
+  return chunks;
 }
 
 function releaseMic() {
+  detachProcessor();
   if (mediaStream) {
     mediaStream.getTracks().forEach(t => t.stop());
     mediaStream = null;
@@ -143,6 +204,7 @@ window.audioWorker.onStartRecording(async (event, options) => {
     if (needsAcquire) {
       // Device changed or never acquired — cleanup then re-acquire
       if (mediaStream) {
+        detachProcessor();
         if (sourceNode) { sourceNode.disconnect(); sourceNode = null; }
         if (audioContext) { audioContext.close(); audioContext = null; }
         mediaStream.getTracks().forEach(t => t.stop());
@@ -152,27 +214,13 @@ window.audioWorker.onStartRecording(async (event, options) => {
       await acquireMic(wantedDeviceId);
       console.log(`[AudioWorker] Mic acquisition took ${Math.round(performance.now() - t0)}ms`);
     } else {
-      console.log('[AudioWorker] Reusing mic stream (keep-alive hit)');
+      const pre = takePreRoll();
+      audioChunks = pre;
+      const preMs = Math.round(pre.reduce((s, c) => s + c.length, 0) / TARGET_SAMPLE_RATE * 1000);
+      console.log(`[AudioWorker] Reusing mic stream (keep-alive hit), pre-roll ${preMs}ms`);
     }
 
-    // Build processor for this capture (cheap, ~1ms)
-    const bufferSize = 4096;
-    processorNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
-
-    let maxAmplitude = 0;
-    processorNode.onaudioprocess = (e) => {
-      if (!isCapturing) return;
-      const inputData = e.inputBuffer.getChannelData(0);
-      for (let i = 0; i < inputData.length; i++) {
-        const abs = Math.abs(inputData[i]);
-        if (abs > maxAmplitude) maxAmplitude = abs;
-      }
-      audioChunks.push(new Float32Array(inputData));
-    };
-
-    sourceNode.connect(processorNode);
-    processorNode.connect(audioContext.destination);
-
+    maxAmplitude = 0;
     isCapturing = true;
     captureSampleRate = audioContext.sampleRate;
     console.log('[AudioWorker] Recording started at', captureSampleRate, 'Hz');
@@ -193,17 +241,8 @@ window.audioWorker.onStopRecording(() => {
   isCapturing = false;
 
   try {
-    // Detach processor to stop CPU usage. Keep mediaStream + audioContext + sourceNode
-    // alive for fast re-start (no getUserMedia cold-start on next dictation).
-    if (processorNode) {
-      processorNode.disconnect();
-      processorNode = null;
-    }
-    if (sourceNode) {
-      sourceNode.disconnect();
-    }
-
-    // Schedule full release after KEEP_ALIVE_MS of inactivity
+    // Le processeur reste branche (il alimente le pre-roll pour la prochaine
+    // dictee). Liberation complete apres KEEP_ALIVE_MS d'inactivite.
     scheduleRelease();
 
     if (audioChunks.length === 0) {
