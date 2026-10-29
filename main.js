@@ -12,7 +12,8 @@ if (process.platform === 'linux') {
 const { log, error: logError } = require('./src/logger');
 const { initTray, setTrayState, updateMicList, setUpdateStatus } = require('./src/tray');
 const { initUpdater, checkForUpdates, quitAndInstall } = require('./src/updater');
-const { initSTT, transcribe, getActiveModelName, setGuardLanguage } = require('./src/stt');
+const { initSTT, transcribe } = require('./src/stt');
+const { transcribeElevenLabs } = require('./src/stt-elevenlabs');
 const { startRecording, stopRecording, setAudioDevice, listAudioDevices } = require('./src/recorder');
 const { pasteText, simulatePaste } = require('./src/paste');
 const { loadConfig, getConfig } = require('./src/config');
@@ -49,16 +50,25 @@ app.whenReady().then(async () => {
 
   const config = getConfig();
   try {
-    await initSTT(config.modelsPath, config.nativeLanguage);
+    await initSTT(config.modelsPath);
     log('[Dikto] STT engine initialized');
   } catch (err) {
     logError('[Dikto] STT init failed:', err.message);
   }
 
   const { setConfigValue } = require('./src/config');
-  const { setApiKeyDisplay } = require('./src/tray');
+  const { setApiKeyDisplay, setElevenLabsKeyDisplay } = require('./src/tray');
 
   initTray(app, {
+    onEngineChange: (engine) => {
+      setConfigValue('sttEngine', engine);
+      log(`[Dikto] STT engine: ${engine}`);
+    },
+    onElevenLabsKeySet: (key) => {
+      setConfigValue('elevenLabsApiKey', key);
+      setElevenLabsKeyDisplay(key);
+      log('[Dikto] ElevenLabs API key saved');
+    },
     onMicSelected: (deviceId, label) => {
       setAudioDevice(deviceId);
       setConfigValue('audioDeviceId', deviceId);
@@ -95,6 +105,8 @@ app.whenReady().then(async () => {
     onCheckForUpdates: () => checkForUpdates(),
     onQuitAndInstall: () => quitAndInstall(),
     currentApiKey: config.geminiApiKey || '',
+    elevenLabsApiKey: config.elevenLabsApiKey || '',
+    sttEngine: config.sttEngine || 'local',
     autoCorrectionEnabled: config.autoCorrection?.enabled || false,
     muteWhileRecording: config.muteWhileRecording || false,
     nativeLanguage: config.nativeLanguage || 'French',
@@ -113,11 +125,16 @@ app.whenReady().then(async () => {
     setInterval(() => checkForUpdates(), 6 * 60 * 60 * 1000);
   }
 
-  // IPC: Gemini key from dialog
+  // IPC: API keys from dialogs
   ipcMain.on('set-gemini-key', (event, key) => {
     setConfigValue('geminiApiKey', key);
     setApiKeyDisplay(key);
     log('[Dikto] Gemini API key saved');
+  });
+  ipcMain.on('set-elevenlabs-key', (event, key) => {
+    setConfigValue('elevenLabsApiKey', key);
+    setElevenLabsKeyDisplay(key);
+    log('[Dikto] ElevenLabs API key saved');
   });
 
   // Enumerate audio devices
@@ -408,11 +425,7 @@ async function finishRecording() {
 
     const samples = audioBuffer instanceof Float32Array ? audioBuffer : new Float32Array(audioBuffer);
 
-    log('[Dikto] Transcribing...');
-    const t0 = Date.now();
-    const { text, guarded, original } = await transcribe(samples);
-    log(`[Dikto] STT took ${Date.now() - t0}ms`);
-    if (guarded) log(`[Dikto] Language guard: English drift replaced (was: "${original.substring(0, 120)}")`);
+    const text = await runSTT(samples);
 
     if (!text || text.trim().length === 0) {
       log('[Dikto] Empty transcription, skipping');
@@ -443,6 +456,29 @@ async function finishRecording() {
   } finally {
     isProcessing = false;
   }
+}
+
+// Moteur selon la config : ElevenLabs Scribe (cloud) ou Parakeet (local).
+// Le cloud retombe sur Parakeet en cas d'erreur (hors ligne, quota, cle).
+// La duree est loguee avec le moteur pour comparer les latences.
+async function runSTT(samples) {
+  const engine = getConfig().sttEngine || 'local';
+  const t0 = Date.now();
+
+  if (engine === 'elevenlabs') {
+    try {
+      const { text } = await transcribeElevenLabs(samples);
+      log(`[Dikto] STT (elevenlabs) took ${Date.now() - t0}ms`);
+      return text;
+    } catch (err) {
+      logError(`[Dikto] ElevenLabs failed after ${Date.now() - t0}ms, falling back to Parakeet: ${err.message}`);
+    }
+  }
+
+  const t1 = Date.now();
+  const { text } = await transcribe(samples);
+  log(`[Dikto] STT (parakeet) took ${Date.now() - t1}ms`);
+  return text;
 }
 
 function waitForActionOrTimeout(ms) {

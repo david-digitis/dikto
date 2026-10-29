@@ -15,6 +15,10 @@ let onClipboardHistoryToggle = null;
 let onClipboardMaxEntries = null;
 let onClipboardClear = null;
 let currentApiKey = '';
+let elevenLabsApiKey = '';
+let sttEngine = 'local';
+let onEngineChange = null;
+let onElevenLabsKeySet = null;
 let autoCorrectionEnabled = false;
 let muteWhileRecordingEnabled = false;
 let nativeLanguage = 'French';
@@ -130,6 +134,10 @@ function initTray(app, callbacks) {
   onCheckForUpdates = callbacks.onCheckForUpdates;
   onQuitAndInstall = callbacks.onQuitAndInstall;
   currentApiKey = callbacks.currentApiKey || '';
+  elevenLabsApiKey = callbacks.elevenLabsApiKey || '';
+  sttEngine = callbacks.sttEngine || 'local';
+  onEngineChange = callbacks.onEngineChange;
+  onElevenLabsKeySet = callbacks.onElevenLabsKeySet;
   autoCorrectionEnabled = callbacks.autoCorrectionEnabled || false;
   muteWhileRecordingEnabled = callbacks.muteWhileRecording || false;
   nativeLanguage = callbacks.nativeLanguage || 'French';
@@ -167,6 +175,21 @@ function buildMenu(micDevices) {
   const apiKeyLabel = currentApiKey
     ? `Gemini key: ...${currentApiKey.slice(-6)}`
     : 'Gemini key: (not configured)';
+  const elevenLabsLabel = elevenLabsApiKey
+    ? `ElevenLabs key: ...${elevenLabsApiKey.slice(-6)}`
+    : 'ElevenLabs key: (not configured)';
+
+  const engineItem = (id, label) => ({
+    label,
+    type: 'radio',
+    checked: sttEngine === id,
+    click: () => {
+      sttEngine = id;
+      log(`[Tray] STT engine: ${id}`);
+      if (onEngineChange) onEngineChange(id);
+      buildMenu(currentMicDevices);
+    }
+  });
 
   const contextMenu = Menu.buildFromTemplate([
     { label: `Dikto v${appRef.getVersion()}`, enabled: false },
@@ -174,6 +197,13 @@ function buildMenu(micDevices) {
     // ─── Transcription ───
     { label: 'Transcription', enabled: false },
     { label: 'Microphone', submenu: micSubmenu },
+    {
+      label: `Engine: ${sttEngine === 'elevenlabs' ? 'ElevenLabs Scribe' : 'Parakeet (local)'}`,
+      submenu: [
+        engineItem('local', 'Parakeet (local, offline)'),
+        engineItem('elevenlabs', 'ElevenLabs Scribe v2 (cloud)'),
+      ]
+    },
     {
       label: 'STT Models...',
       type: 'normal',
@@ -279,7 +309,18 @@ function buildMenu(micDevices) {
     { label: apiKeyLabel, enabled: false },
     {
       label: 'Configure Gemini API key...',
-      click: () => showApiKeyDialog(),
+      click: () => showApiKeyDialog({
+        title: 'Gemini API Key', placeholder: 'AIzaSy...',
+        current: currentApiKey, channel: 'set-gemini-key',
+      }),
+    },
+    { label: elevenLabsLabel, enabled: false },
+    {
+      label: 'Configure ElevenLabs API key...',
+      click: () => showApiKeyDialog({
+        title: 'ElevenLabs API Key', placeholder: 'sk_...',
+        current: elevenLabsApiKey, channel: 'set-elevenlabs-key',
+      }),
     },
     { type: 'separator' },
     getUpdateMenuItem(),
@@ -302,7 +343,9 @@ function buildMenu(micDevices) {
   tray.setContextMenu(contextMenu);
 }
 
-function showApiKeyDialog() {
+// Dialogue generique de saisie de cle API : la cle part par IPC sur `channel`,
+// le main la chiffre (safeStorage) et la stocke.
+function showApiKeyDialog({ title, placeholder, current, channel }) {
   const win = new BrowserWindow({
     width: 480,
     height: 180,
@@ -310,14 +353,14 @@ function showApiKeyDialog() {
     minimizable: false,
     maximizable: false,
     alwaysOnTop: true,
-    title: 'Dikto — Gemini API Key',
+    title: `Dikto — ${title}`,
     webPreferences: {
       contextIsolation: false,
       nodeIntegration: true,
     }
   });
 
-  const currentVal = currentApiKey || '';
+  const currentVal = (current || '').replace(/"/g, '');
 
   win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
 <!DOCTYPE html>
@@ -337,8 +380,8 @@ function showApiKeyDialog() {
 </style>
 </head>
 <body>
-  <h3>Gemini API Key</h3>
-  <input id="key" type="text" placeholder="AIzaSy..." value="${currentVal}" autofocus />
+  <h3>${title}</h3>
+  <input id="key" type="text" placeholder="${placeholder}" value="${currentVal}" autofocus />
   <div class="row">
     <button class="cancel" onclick="window.close()">Cancel</button>
     <button class="save" onclick="save()">Save</button>
@@ -348,7 +391,7 @@ function showApiKeyDialog() {
     function save() {
       const key = document.getElementById('key').value.trim();
       if (key) {
-        ipcRenderer.send('set-gemini-key', key);
+        ipcRenderer.send('${channel}', key);
         window.close();
       }
     }
@@ -395,6 +438,12 @@ function setUpdateStatus(status, version) {
 
 function setApiKeyDisplay(key) {
   currentApiKey = key;
+  buildMenu(currentMicDevices);
+}
+
+function setElevenLabsKeyDisplay(key) {
+  elevenLabsApiKey = key;
+  buildMenu(currentMicDevices);
 }
 
 function updateMicList(devices) {
@@ -415,4 +464,4 @@ function setTrayState(state) {
   tray.setToolTip(tooltips[state] || tooltips.idle);
 }
 
-module.exports = { initTray, setTrayState, updateMicList, setApiKeyDisplay, setUpdateStatus };
+module.exports = { initTray, setTrayState, updateMicList, setApiKeyDisplay, setElevenLabsKeyDisplay, setUpdateStatus };

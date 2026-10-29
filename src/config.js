@@ -2,8 +2,13 @@ const { app, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Cles API chiffrees via safeStorage (stockees sous <key>Encrypted dans le JSON)
+const SECRET_KEYS = ['geminiApiKey', 'elevenLabsApiKey'];
+
 let config = {
   geminiApiKey: '',
+  elevenLabsApiKey: '',
+  sttEngine: 'local', // 'local' (Parakeet) | 'elevenlabs' (Scribe v2 cloud)
   modelsPath: '',
   activeModel: 'parakeet-tdt-v3-int8',
   muteWhileRecording: false, // couper le son systeme pendant la dictee
@@ -58,11 +63,13 @@ async function loadConfig() {
       const raw = fs.readFileSync(configPath, 'utf-8');
       const saved = JSON.parse(raw);
 
-      // Decrypt API key if stored encrypted
-      if (saved.geminiApiKeyEncrypted && safeStorage.isEncryptionAvailable()) {
-        const buffer = Buffer.from(saved.geminiApiKeyEncrypted, 'base64');
-        saved.geminiApiKey = safeStorage.decryptString(buffer);
-        delete saved.geminiApiKeyEncrypted;
+      // Decrypt API keys if stored encrypted
+      for (const key of SECRET_KEYS) {
+        const enc = saved[`${key}Encrypted`];
+        if (enc && safeStorage.isEncryptionAvailable()) {
+          saved[key] = safeStorage.decryptString(Buffer.from(enc, 'base64'));
+        }
+        delete saved[`${key}Encrypted`];
       }
 
       config = { ...config, ...saved, modelsPath: getModelsPath() };
@@ -83,11 +90,12 @@ function saveConfig() {
   const configPath = getConfigPath();
   const toSave = { ...config };
 
-  // Encrypt API key before saving
-  if (toSave.geminiApiKey && safeStorage.isEncryptionAvailable()) {
-    const encrypted = safeStorage.encryptString(toSave.geminiApiKey);
-    toSave.geminiApiKeyEncrypted = encrypted.toString('base64');
-    delete toSave.geminiApiKey;
+  // Encrypt API keys before saving (never written in clear)
+  for (const key of SECRET_KEYS) {
+    if (toSave[key] && safeStorage.isEncryptionAvailable()) {
+      toSave[`${key}Encrypted`] = safeStorage.encryptString(toSave[key]).toString('base64');
+    }
+    delete toSave[key];
   }
 
   // Don't save modelsPath (derived from userData)
@@ -102,8 +110,8 @@ function getConfig() {
 }
 
 function setConfigValue(key, value) {
-  if (key === 'geminiApiKey') {
-    config.geminiApiKey = value;
+  if (SECRET_KEYS.includes(key)) {
+    config[key] = value;
   } else {
     // Support nested keys like 'autoCorrection.enabled'
     const keys = key.split('.');
