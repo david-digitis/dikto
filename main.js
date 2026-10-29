@@ -79,7 +79,6 @@ app.whenReady().then(async () => {
     },
     onLanguageChange: (key, lang) => {
       setConfigValue(key, lang);
-      if (key === 'nativeLanguage') setGuardLanguage(lang);
       log(`[Dikto] ${key}: ${lang}`);
     },
     onClipboardHistoryToggle: (enabled) => {
